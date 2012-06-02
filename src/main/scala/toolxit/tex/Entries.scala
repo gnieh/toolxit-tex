@@ -20,6 +20,46 @@ import scala.util.parsing.input.Positional
 // a raw entry as returned by the parser before it is refined for later use
 sealed trait Raw extends Positional
 
-final case class PdfLaTeXLog(statistics: List[TeXStatistic]) extends Raw
+final case class PdfLaTeXLog(catalog: List[TexCatalogFile],
+                             statistics: List[Statistic])
 
-case class TeXStatistic(name: String, value: String) extends Raw
+final case class TexCatalogFile(path: String,
+                                catalog: List[TexCatalog],
+                                includes: List[TexCatalogFile]) extends Raw
+
+sealed trait TexCatalog {
+  val name: String
+  val date: String
+  val version: String
+  val info: Option[String]
+
+  override def toString: String = "Name: " + name + " - Date: " + date + " - Version: " + version + " - Info: " + info
+}
+
+final case class Class(name: String,
+                       date: String,
+                       version: String,
+                       info: Option[String]) extends TexCatalog
+final case class Package(name: String,
+                         date: String,
+                         version: String,
+                         info: Option[String]) extends TexCatalog
+final case class File(name: String,
+                      date: String,
+                      version: String,
+                      info: Option[String]) extends TexCatalog
+final case class Language(name: String,
+                          date: String,
+                          version: String,
+                          info: Option[String]) extends TexCatalog
+
+// Statistic related stuff
+sealed trait Statistic extends Raw
+
+final case class TeXStatistic(name: String,
+                              value: Int,
+                              max: Option[Int] = None) extends Statistic
+final case class PdfStatistic(name: String,
+                              value: Int,
+                              pool: Option[Int] = None,
+                              max: Option[Int] = None) extends Statistic
