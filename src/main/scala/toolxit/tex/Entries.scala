@@ -31,27 +31,35 @@ sealed trait TexCatalog {
   val name: String
   val date: String
   val version: String
-  val info: Option[String]
+  val verbose: Option[String]
 
-  override def toString: String = "Name: " + name + " - Date: " + date + " - Version: " + version + " - Info: " + info
+  override def toString: String = "Name: " + name + " - Date: " + date + " - Version: " + version + " - Details: " + verbose
 }
 
 final case class Class(name: String,
                        date: String,
                        version: String,
-                       info: Option[String]) extends TexCatalog
+                       verbose: Option[String]) extends TexCatalog
 final case class Package(name: String,
                          date: String,
                          version: String,
-                         info: Option[String]) extends TexCatalog
+                         verbose: Option[String]) extends TexCatalog
 final case class File(name: String,
                       date: String,
                       version: String,
-                      info: Option[String]) extends TexCatalog
+                      verbose: Option[String]) extends TexCatalog
 final case class Language(name: String,
                           date: String,
                           version: String,
-                          info: Option[String]) extends TexCatalog
+                          verbose: Option[String]) extends TexCatalog
+
+sealed trait PackageMessage {
+	val name: String
+	val value: String
+	}
+
+final case class PackageInfo(name: String, value: String) extends PackageMessage
+final case class UnkownPackageMessage(name: String, value: String) extends PackageMessage
 
 // Statistic related stuff
 sealed trait Statistic extends Raw
