@@ -20,12 +20,13 @@ import scala.util.parsing.input.Positional
 // a raw entry as returned by the parser before it is refined for later use
 sealed trait Raw extends Positional
 
-final case class PdfLaTeXLog(catalog: List[TexCatalogFile],
+final case class PdfLaTeXLog(catalog: List[TeXCatalogFile],
+                             messages: List[TeXMessage],
                              statistics: List[Statistic])
 
-final case class TexCatalogFile(path: String,
+final case class TeXCatalogFile(path: String,
                                 catalog: List[TexCatalog],
-                                includes: List[TexCatalogFile]) extends Raw
+                                includes: List[TeXCatalogFile]) extends Raw
 
 sealed trait TexCatalog {
   val name: String
@@ -53,13 +54,19 @@ final case class Language(name: String,
                           version: String,
                           verbose: Option[String]) extends TexCatalog
 
-sealed trait PackageMessage {
-	val name: String
-	val value: String
-	}
+sealed trait TeXMessage {
+  val message: String
+}
 
-final case class PackageInfo(name: String, value: String) extends PackageMessage
-final case class UnkownPackageMessage(name: String, value: String) extends PackageMessage
+sealed trait PackageMessage extends TeXMessage {
+  val name: String
+}
+
+final case class PackageInfo(name: String, message: String) extends PackageMessage
+final case class PackageWarning(name: String, message: String) extends PackageMessage
+final case class UnkownPackageMessage(name: String, message: String) extends PackageMessage
+
+final case class OverfullBox(elem: String, message: String, start: Int, stop: Int) extends TeXMessage
 
 // Statistic related stuff
 sealed trait Statistic extends Raw

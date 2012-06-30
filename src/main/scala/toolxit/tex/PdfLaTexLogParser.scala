@@ -35,10 +35,9 @@ object PdfLaTeXLogParser extends RegexParsers {
    *  - Output stats
    */
   lazy val logFile: Parser[PdfLaTeXLog] =
-    header ~ opt(source) ~ rep(file | stuffNoBody ^^^ null) ~ body ~ rep(outputstat | stuff ^^^ null) ^^ {
-      case header ~ fileList ~ body ~ statList => {
-        PdfLaTeXLog(fileList.filter(_ != null),
-          statList.filter(_ != null))
+    header ~ opt(source) ~ rep(file | stuffNoBody ^^^ null) ~ body ~ rep(packageMessage | overfullBox | stuff ^^^ null) ~ rep(outputstat | stuff ^^^ null) ^^ {
+      case header ~ fileList ~ body ~ messages ~ statList => {
+        PdfLaTeXLog(fileList.filter(_ != null), messages.filter(_ != null), statList.filter(_ != null))
       }
     }
 
@@ -54,7 +53,7 @@ object PdfLaTeXLogParser extends RegexParsers {
   // TODO: This seriously can't be considered as a tag for the "body", but it is the best I could find looking at the log...
   lazy val body: Parser[String] = "[1"
 
-  lazy val file: Parser[TexCatalogFile] =
+  lazy val file: Parser[TeXCatalogFile] =
     /**
      * Accept following formats:
      * \li Simple catalog inclusion:
@@ -77,12 +76,12 @@ object PdfLaTeXLogParser extends RegexParsers {
       case path ~ catalogBody => {
         val grouped = catalogBody.filter(_ != null).groupBy {
           case _: TexCatalog => "catalog"
-          case _: TexCatalogFile => "files"
+          case _: TeXCatalogFile => "files"
           case _: PackageMessage => "messages"
         }
         Console.println("TC " + path);
-        TexCatalogFile(path, grouped.getOrElse("catalog", Nil).map(_.asInstanceOf[TexCatalog]),
-          grouped.getOrElse("files", Nil).map(_.asInstanceOf[TexCatalogFile]))
+        TeXCatalogFile(path, grouped.getOrElse("catalog", Nil).map(_.asInstanceOf[TexCatalog]),
+          grouped.getOrElse("files", Nil).map(_.asInstanceOf[TeXCatalogFile]))
       }
     }
 
@@ -103,28 +102,42 @@ object PdfLaTeXLogParser extends RegexParsers {
   lazy val packageMessage: Parser[PackageMessage] =
     /**
      * Accept following formats:
-     * 
+     *
      * \li Package hyperref Info: Hyper figures OFF on input line 5757.
-     * 
+     *
      * \li  Package etexcmds Info: Could not find \expanded.
      *      (etexcmds)             That can mean that you are not using pdfTeX 1.50 or
      *      (etexcmds)             that some package has redefined \expanded.
      *      (etexcmds)             In the latter case, load this package earlier.
-     *      
-     * \li Package Fancyhdr Warning: \headheight is too small (12.0pt): 
+     *  Not yet:
+     * \li Package Fancyhdr Warning: \headheight is too small (12.0pt):
      *      Make it at least 14.49998pt.
      *      We now make it that large for the rest of the document.
      *      This may cause the page layout to be inconsistent, however.
      */
-    "Package" ~> "[\\w.-]+".r ~ ("\\w+".r <~ ":") ~ "[^\n]+".r ~ rep((("(" ~> "[\\w.-]+".r ~> ")") | "\\s+".r) ~> "[^\n]+".r) ^^ {
-      case name ~ messageType ~ info ~ infoNext =>
+    "Package|LaTeX".r ~ "[\\w.-]+".r ~ ("\\w+".r <~ ":") ~ "[^\n]+".r ~ rep("(" ~> "[\\w.-]+".r ~> ")" ~> "[^\n]+".r) ^^ {
+      case messageClasse ~ name ~ messageType ~ info ~ infoNext =>
         {
           val message = info + infoNext.mkString(" ")
           Console.println("PM (" + messageType + ") " + name + ":" + message)
           messageType match {
             case "Info" => PackageInfo(name, message)
+            case "Warning" => PackageWarning(name, message)
             case _ => UnkownPackageMessage(name, message)
           }
+        }
+    }
+
+  lazy val overfullBox: Parser[OverfullBox] =
+    /**
+     * Accept following formats:
+     * \li Overfull \hbox (2.86124pt too wide) in paragraph at lines 1373--1375
+     */
+    ("Overfull" ~> "\\\\[\\w.-]+".r) ~ ("(" ~> "[^\\)]+".r <~ ")") ~ ("in paragraph at lines " ~> "\\d+".r) ~ ("--" ~> "\\d+".r) ^^ {
+      case elem ~ message ~ start ~ stop =>
+        {
+          Console.println("Overfull (" + elem + "): " + message + "-> start: " + start + " - stop: " + stop)
+          OverfullBox(elem, message, start.toInt, stop.toInt)
         }
     }
 
