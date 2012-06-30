@@ -58,6 +58,8 @@ sealed trait TeXMessage {
   val message: String
 }
 
+final case class LaTeXWarning(message: String) extends TeXMessage
+
 sealed trait PackageMessage extends TeXMessage {
   val name: String
 }

@@ -35,7 +35,7 @@ object PdfLaTeXLogParser extends RegexParsers {
    *  - Output stats
    */
   lazy val logFile: Parser[PdfLaTeXLog] =
-    header ~ opt(source) ~ rep(file | stuffNoBody ^^^ null) ~ body ~ rep(packageMessage | overfullBox | stuff ^^^ null) ~ rep(outputstat | stuff ^^^ null) ^^ {
+    header ~ opt(source) ~ rep(file | stuffNoBody ^^^ null) ~ body ~ rep(warning | packageMessage | overfullBox | stuff ^^^ null) ~ rep(outputstat | stuff ^^^ null) ^^ {
       case header ~ fileList ~ body ~ messages ~ statList => {
         PdfLaTeXLog(fileList.filter(_ != null), messages.filter(_ != null), statList.filter(_ != null))
       }
@@ -125,6 +125,19 @@ object PdfLaTeXLogParser extends RegexParsers {
             case "Warning" => PackageWarning(name, message)
             case _ => UnkownPackageMessage(name, message)
           }
+        }
+    }
+  
+    lazy val warning: Parser[LaTeXWarning] =
+    /**
+     * Accept following formats:
+     * \li LaTeX Warning: `!h' float specifier changed to `!ht'.
+     */
+    "LaTeX Warning:" ~> "[^\n]+".r ^^ {
+      case message =>
+        {
+          Console.println("LaTeX Warning: "+ message)
+          LaTeXWarning(message)
         }
     }
 
