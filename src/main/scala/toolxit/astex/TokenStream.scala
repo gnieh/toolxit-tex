@@ -34,7 +34,7 @@ import scala.collection.mutable.Map
  *  @author Lucas Satabin
  *
  */
-class TokenStream(is: InputStream, reportMessage: (Level.Value, String) => Unit) {
+class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) => Unit) {
 
   // == internals ==
 
@@ -62,6 +62,10 @@ class TokenStream(is: InputStream, reportMessage: (Level.Value, String) => Unit)
   category('%') = Category.COMMENT_CHARACTER
   category('\\') = Category.ESCAPE_CHARACTER
 
+  // line and column information for reporting
+  private var line = 1
+  private var column = 1
+
   private object category {
     def apply(c: Char) = {
       environment.categories.get(c) match {
@@ -81,7 +85,7 @@ class TokenStream(is: InputStream, reportMessage: (Level.Value, String) => Unit)
 
   /* returns the next token from the input stream */
   @scala.annotation.tailrec
-  private def nextToken: Option[Token] = {
+  final def nextToken: Option[Token] = {
     inputStream.headOption match {
       case Some(read) =>
         val cat = category(read)
@@ -91,16 +95,20 @@ class TokenStream(is: InputStream, reportMessage: (Level.Value, String) => Unit)
           // if the read character is an escape character
           // (whatever the state is), we want to scan a
           // control sequence name
-          Some(ControlSequenceToken(read + controlSequenceName))
+          Some(ControlSequenceToken(controlSequenceName))
         } else if (cat == Category.END_OF_LINE) {
           // character is consumed
           consume(1)
           if (state == ReadingState.N) {
             // this is a new paragraph
+            line += 1
+            column = 1
             Some(ControlSequenceToken("par"))
           } else if (state == ReadingState.M) {
             // this is a space
             state = ReadingState.N
+            line += 1
+            column = 1
             Some(CharacterToken(' ', Category.SPACE))
           } else {
             // state S, just drop this character and read the next one
@@ -132,7 +140,7 @@ class TokenStream(is: InputStream, reportMessage: (Level.Value, String) => Unit)
           // invalid character: consume it
           consume(1)
           // report an error 
-          reportMessage(Level.ERROR, "invalid character found: " + read)
+          reportMessage(Level.ERROR, line, column, "invalid character found: " + read)
           // and continue
           nextToken
         } else {
@@ -155,7 +163,7 @@ class TokenStream(is: InputStream, reportMessage: (Level.Value, String) => Unit)
       case Some(read) =>
         if (category(read) == Category.LETTER) {
           // a letter
-          val seq = inputStream.takeWhile(c => category(read) == Category.LETTER)
+          val seq = inputStream.takeWhile(c => category(c) == Category.LETTER)
           // build the control sequence name
           val name = seq.mkString
           // consume the name
@@ -277,6 +285,7 @@ class TokenStream(is: InputStream, reportMessage: (Level.Value, String) => Unit)
     /* consumes n characters from the input stream) */
     private def consume(n: Int) {
       internalStream = internalStream.drop(n)
+      column += n
     }
 
     /* pushes the given character at the beginning of the input stream */
