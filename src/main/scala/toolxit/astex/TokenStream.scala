@@ -34,7 +34,7 @@ import scala.collection.mutable.Map
  *  @author Lucas Satabin
  *
  */
-class TokenStream(is: InputStream) {
+class TokenStream(is: InputStream, reportMessage: (Level.Value, String) => Unit) {
 
   // == internals ==
 
@@ -53,6 +53,15 @@ class TokenStream(is: InputStream) {
   // the state in which the reader is
   private var state = ReadingState.N
 
+  // initialize root environment
+  environment = new Environment
+  // set specific categories
+  category(13) = Category.END_OF_LINE
+  category(' ') = Category.SPACE
+  category(0) = Category.INVALID_CHARACTER
+  category('%') = Category.COMMENT_CHARACTER
+  category('\\') = Category.ESCAPE_CHARACTER
+
   private object category {
     def apply(c: Char) = {
       environment.categories.get(c) match {
@@ -69,8 +78,6 @@ class TokenStream(is: InputStream) {
       environment.categories(c) = cat
     }
   }
-
-  init
 
   /* returns the next token from the input stream */
   @scala.annotation.tailrec
@@ -93,20 +100,49 @@ class TokenStream(is: InputStream) {
             Some(ControlSequenceToken("par"))
           } else if (state == ReadingState.M) {
             // this is a space
-            Some(CharacterToken(" ", Category.SPACE))
+            state = ReadingState.N
+            Some(CharacterToken(' ', Category.SPACE))
           } else {
             // state S, just drop this character and read the next one
             nextToken
           }
         } else if (cat == Category.IGNORED_CHARACTER) {
+          // character is consumed
+          consume(1)
           // ignore this character and read the next one
           // as if this one was not there
           nextToken
         } else if (cat == Category.SPACE) {
-          // TODO
-          None
+          // character is consumed
+          consume(1)
+          if (state == ReadingState.M) {
+            // switch to reading state S and return the space character
+            state = ReadingState.S
+            Some(CharacterToken(' ', Category.SPACE))
+          } else {
+            // simply ignore this space token and remain in the same state
+            // go to the next token
+            nextToken
+          }
+        } else if (cat == Category.COMMENT_CHARACTER) {
+          // consume and ignore all characters until the end of the line
+          consume(inputStream.takeWhile(c => category(c) != Category.END_OF_LINE).size)
+          nextToken
+        } else if (cat == Category.INVALID_CHARACTER) {
+          // invalid character: consume it
+          consume(1)
+          // report an error 
+          reportMessage(Level.ERROR, "invalid character found: " + read)
+          // and continue
+          nextToken
         } else {
-          None
+          // normal case
+          // character is consumed
+          consume(1)
+          // middle of the line
+          state = ReadingState.M
+          // simple character token is returned with attached category
+          Some(CharacterToken(read, cat))
         }
       case None =>
         // end of stream
@@ -163,17 +199,6 @@ class TokenStream(is: InputStream) {
     // M = middle of a line
     // S = skipping blanks
     val N, M, S = Value
-  }
-
-  def init {
-    // initialize root environment
-    environment = new Environment
-    // specify specific categories
-    category(13) = Category.END_OF_LINE
-    category(' ') = Category.SPACE
-    category(0) = Category.INVALID_CHARACTER
-    category('%') = Category.COMMENT_CHARACTER
-    category('\\') = Category.ESCAPE_CHARACTER
   }
 
   /* this class represents the character stream read as input.

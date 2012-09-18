@@ -39,7 +39,7 @@ sealed trait Token
  *  @author Lucas Satabin
  *
  */
-case class CharacterToken(value: String, category: Category.Value) extends Token
+case class CharacterToken(value: Char, category: Category.Value) extends Token
 
 /** A control sequence token has not category. */
 case class ControlSequenceToken(name: String) extends Token
