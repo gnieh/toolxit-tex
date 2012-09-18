@@ -56,7 +56,7 @@ class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) 
   // initialize root environment
   environment = new Environment
   // set specific categories
-  category(13) = Category.END_OF_LINE
+  category('\n') = Category.END_OF_LINE
   category(' ') = Category.SPACE
   category(0) = Category.INVALID_CHARACTER
   category('%') = Category.COMMENT_CHARACTER
