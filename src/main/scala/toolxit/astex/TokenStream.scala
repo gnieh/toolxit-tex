@@ -44,7 +44,7 @@ class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) 
   private class Environment(parent: Option[Environment] = None) {
     // the map from character to category code
     val categories =
-      Map.empty[Char, Category.Value] //.withDefaultValue(Category.OTHER_CHARACTER)
+      Map.empty[Char, Category.Value]
 
   }
 
@@ -61,6 +61,7 @@ class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) 
   category(0) = Category.INVALID_CHARACTER
   category('%') = Category.COMMENT_CHARACTER
   category('\\') = Category.ESCAPE_CHARACTER
+  //  category('^') = Category.SUPERSCRIPT
 
   // line and column information for reporting
   private var line = 1
@@ -262,6 +263,7 @@ class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) 
               head
             } else {
               // other case, simply return the character
+              consume(1)
               c
             }
           } else {
@@ -290,7 +292,8 @@ class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) 
 
     /* pushes the given character at the beginning of the input stream */
     private def pushCharacter(c: Char) {
-      internalStream = c #:: internalStream
+      val old = internalStream
+      internalStream = c #:: old
     }
 
   }
