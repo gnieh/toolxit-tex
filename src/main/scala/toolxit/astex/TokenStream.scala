@@ -36,6 +36,10 @@ import scala.collection.mutable.Map
  */
 class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) => Unit) {
 
+  /** Transforms this parser to a token stream. */
+  def toStream =
+    Stream.continually(nextToken).takeWhile(_.isDefined).map(_.get)
+
   // == internals ==
 
   // the input stream converted into a stream of UTF-8 characters
@@ -135,7 +139,7 @@ class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) 
           }
         } else if (cat == Category.COMMENT_CHARACTER) {
           // consume and ignore all characters until the end of the line
-          consume(inputStream.takeWhile(c => category(c) != Category.END_OF_LINE).size)
+          consume(inputStream.takeWhile(c => category(c) != Category.END_OF_LINE).size + 1)
           nextToken
         } else if (cat == Category.INVALID_CHARACTER) {
           // invalid character: consume it
@@ -299,4 +303,3 @@ class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) 
   }
 
 }
-
