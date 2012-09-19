@@ -19,7 +19,8 @@ import java.io.InputStream
 
 import scala.collection.mutable.Map
 
-/** A token stream returns the token read in the user input.
+/** Lazily builds a token stream from an character stream.
+ *  A token stream returns the token read in the user input.
  *  It performs macro expansion when some are encountered.
  *  In the beginning, it is initialized and only the following category code exists:
  *   - `<return>` has category 5 (end of line)
@@ -34,7 +35,9 @@ import scala.collection.mutable.Map
  *  @author Lucas Satabin
  *
  */
-class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) => Unit) {
+class TeXTokenParser(is: InputStream,
+                     environment: TeXEnvironment,
+                     reportMessage: (Level.Value, Int, Int, String) => Unit) {
 
   /** Transforms this parser to a token stream. */
   def toStream =
@@ -45,52 +48,18 @@ class TeXParser(is: InputStream, reportMessage: (Level.Value, Int, Int, String) 
   // the input stream converted into a stream of UTF-8 characters
   private var inputStream: Stream[Char] = new CharacterStream(is)
 
-  private class Environment(parent: Option[Environment] = None) {
-    // the map from character to category code
-    val categories =
-      Map.empty[Char, Category.Value]
-
-  }
-
-  private var environment: Environment = null
-
   // the state in which the reader is
   private var state = ReadingState.N
 
-  // initialize root environment
-  environment = new Environment
-  // set specific categories
-  category('\n') = Category.END_OF_LINE
-  category(' ') = Category.SPACE
-  category(0) = Category.INVALID_CHARACTER
-  category('%') = Category.COMMENT_CHARACTER
-  category('\\') = Category.ESCAPE_CHARACTER
-  //  category('^') = Category.SUPERSCRIPT
+  import environment._
 
   // line and column information for reporting
   private var line = 1
   private var column = 1
 
-  private object category {
-    def apply(c: Char) = {
-      environment.categories.get(c) match {
-        case Some(cat) => cat
-        case None =>
-          // if not specified otherwise, UTF-8 letters are in category `letter`
-          if (Character.isLetter(c))
-            Category.LETTER
-          else
-            Category.OTHER_CHARACTER
-      }
-    }
-    def update(c: Char, cat: Category.Value) {
-      environment.categories(c) = cat
-    }
-  }
-
   /* returns the next token from the input stream */
   @scala.annotation.tailrec
-  final def nextToken: Option[Token] = {
+  private def nextToken: Option[Token] = {
     inputStream.headOption match {
       case Some(read) =>
         val cat = category(read)

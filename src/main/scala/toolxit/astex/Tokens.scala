@@ -43,3 +43,6 @@ case class CharacterToken(value: Char, category: Category.Value) extends Token
 
 /** A control sequence token has not category. */
 case class ControlSequenceToken(name: String) extends Token
+
+/** A parameter token may only occur in the parameter text of a control sequence */
+case class ParameterToken(number: Int) extends Token

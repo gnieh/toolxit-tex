@@ -14,9 +14,14 @@
 * limitations under the License.
 */
 package toolxit.astex
-package macro
 
-/** @author Lucas Satabin
+/** A macro has a name (control sequence) and a list of
+ *  parameters. Whenever this sequence occurs, it is replace by the
+ *  replacement tokens.
+ *
+ *  @author Lucas Satabin
  *
  */
-case class Macro(controlSequence: String, parameters: Token*)
+case class Macro(cs: ControlSequenceToken,
+                 parameters: List[Token],
+                 replacement: List[Token])
