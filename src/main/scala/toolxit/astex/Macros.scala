@@ -15,13 +15,24 @@
 */
 package toolxit.astex
 
-/** A macro has a name (control sequence) and a list of
+sealed trait Macro
+
+/** A user defined macro has a name (control sequence) and a list of
  *  parameters. Whenever this sequence occurs, it is replace by the
  *  replacement tokens.
  *
  *  @author Lucas Satabin
  *
  */
-case class Macro(cs: ControlSequenceToken,
-                 parameters: List[Token],
-                 replacement: List[Token])
+final case class UserMacro(cs: ControlSequenceToken,
+                           parameters: List[Token],
+                           replacement: List[Token],
+                           long: Boolean = false,
+                           outer: Boolean = false)
+    extends Macro
+
+/** A primitive macro is already installed into the TeX program at the beginning. */
+final case class PrimitiveMacro(cs: ControlSequenceToken,
+                                parameters: List[Token],
+                                run: List[Token] => Option[Token])
+    extends Macro

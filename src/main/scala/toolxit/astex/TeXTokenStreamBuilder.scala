@@ -35,9 +35,9 @@ import scala.collection.mutable.Map
  *  @author Lucas Satabin
  *
  */
-class TeXTokenParser(is: InputStream,
-                     environment: TeXEnvironment,
-                     reportMessage: (Level.Value, Int, Int, String) => Unit) {
+class TeXTokenStreamBuilder(is: InputStream,
+                            environment: TeXEnvironment,
+                            reportMessage: (Level.Value, Int, Int, String) => Unit) {
 
   /** Transforms this parser to a token stream. */
   def toStream =
@@ -63,16 +63,14 @@ class TeXTokenParser(is: InputStream,
     inputStream.headOption match {
       case Some(read) =>
         val cat = category(read)
+        // the read character is consumed
+        consume(1)
         if (cat == Category.ESCAPE_CHARACTER) {
-          // consume it
-          consume(1)
           // if the read character is an escape character
           // (whatever the state is), we want to scan a
           // control sequence name
           Some(ControlSequenceToken(controlSequenceName))
         } else if (cat == Category.END_OF_LINE) {
-          // character is consumed
-          consume(1)
           if (state == ReadingState.N) {
             // this is a new paragraph
             line += 1
@@ -89,14 +87,10 @@ class TeXTokenParser(is: InputStream,
             nextToken
           }
         } else if (cat == Category.IGNORED_CHARACTER) {
-          // character is consumed
-          consume(1)
           // ignore this character and read the next one
           // as if this one was not there
           nextToken
         } else if (cat == Category.SPACE) {
-          // character is consumed
-          consume(1)
           if (state == ReadingState.M) {
             // switch to reading state S and return the space character
             state = ReadingState.S
@@ -111,16 +105,12 @@ class TeXTokenParser(is: InputStream,
           consume(inputStream.takeWhile(c => category(c) != Category.END_OF_LINE).size + 1)
           nextToken
         } else if (cat == Category.INVALID_CHARACTER) {
-          // invalid character: consume it
-          consume(1)
           // report an error 
           reportMessage(Level.ERROR, line, column, "invalid character found: " + read)
           // and continue
           nextToken
         } else {
           // normal case
-          // character is consumed
-          consume(1)
           // middle of the line
           state = ReadingState.M
           // simple character token is returned with attached category
