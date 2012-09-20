@@ -34,7 +34,7 @@ import scala.collection.mutable.Map
  *  @author Lucas Satabin
  *
  */
-class TeXEnvironment {
+class TeXEnvironment extends PrimitiveControlSequences {
 
   /** Enters a new group. */
   def enterGroup {
@@ -83,7 +83,7 @@ class TeXEnvironment {
 
   // ==== internals ====
 
-  private var environment = new Environment
+  private[this] var environment = new Environment
 
   // set specific categories statically known at the beginning
   // when a fresh root environment is created
@@ -92,6 +92,9 @@ class TeXEnvironment {
   category(0) = Category.INVALID_CHARACTER
   category('%') = Category.COMMENT_CHARACTER
   category('\\') = Category.ESCAPE_CHARACTER
+
+  // install primitive control sequences
+  intallPrimitives
 
   private class Environment(val parent: Option[Environment] = None) {
     // the map from character to category code

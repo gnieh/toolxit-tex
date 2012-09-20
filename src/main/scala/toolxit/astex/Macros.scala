@@ -15,7 +15,9 @@
 */
 package toolxit.astex
 
-sealed trait Macro
+sealed trait Macro {
+  val cs: String
+}
 
 /** A user defined macro has a name (control sequence) and a list of
  *  parameters. Whenever this sequence occurs, it is replace by the
@@ -24,7 +26,7 @@ sealed trait Macro
  *  @author Lucas Satabin
  *
  */
-final case class UserMacro(cs: ControlSequenceToken,
+final case class UserMacro(cs: String,
                            parameters: List[Token],
                            replacement: List[Token],
                            long: Boolean = false,
@@ -32,7 +34,6 @@ final case class UserMacro(cs: ControlSequenceToken,
     extends Macro
 
 /** A primitive macro is already installed into the TeX program at the beginning. */
-final case class PrimitiveMacro(cs: ControlSequenceToken,
-                                parameters: List[Token],
-                                run: List[Token] => Option[Token])
+final case class PrimitiveMacro(cs: String,
+                                run: Stream[Token] => Stream[Token])
     extends Macro

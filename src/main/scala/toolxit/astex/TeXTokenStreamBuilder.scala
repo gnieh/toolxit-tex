@@ -40,13 +40,18 @@ class TeXTokenStreamBuilder(is: InputStream,
                             reportMessage: (Level.Value, Int, Int, String) => Unit) {
 
   /** Transforms this parser to a token stream. */
-  def toStream =
+  lazy val toStream =
     Stream.continually(nextToken).takeWhile(_.isDefined).map(_.get)
 
   // == internals ==
 
+  // the internal raw input characters
+  private var internalStream =
+    Stream.continually(is.read).takeWhile(_ != -1).map(_.toChar)
+
   // the input stream converted into a stream of UTF-8 characters
-  private var inputStream: Stream[Char] = new CharacterStream(is)
+  private var inputStream: Stream[Char] =
+    Stream.continually(nextChar).takeWhile(_.isDefined).map(_.get)
 
   // the state in which the reader is
   private var state = ReadingState.N
@@ -59,67 +64,66 @@ class TeXTokenStreamBuilder(is: InputStream,
 
   /* returns the next token from the input stream */
   @scala.annotation.tailrec
-  private def nextToken: Option[Token] = {
-    inputStream.headOption match {
-      case Some(read) =>
-        val cat = category(read)
-        // the read character is consumed
-        consume(1)
-        if (cat == Category.ESCAPE_CHARACTER) {
-          // if the read character is an escape character
-          // (whatever the state is), we want to scan a
-          // control sequence name
-          Some(ControlSequenceToken(controlSequenceName))
-        } else if (cat == Category.END_OF_LINE) {
-          if (state == ReadingState.N) {
-            // this is a new paragraph
-            line += 1
-            column = 1
-            Some(ControlSequenceToken("par"))
-          } else if (state == ReadingState.M) {
-            // this is a space
-            state = ReadingState.N
-            line += 1
-            column = 1
-            Some(CharacterToken(' ', Category.SPACE))
-          } else {
-            // state S, just drop this character and read the next one
-            nextToken
-          }
-        } else if (cat == Category.IGNORED_CHARACTER) {
-          // ignore this character and read the next one
-          // as if this one was not there
-          nextToken
-        } else if (cat == Category.SPACE) {
-          if (state == ReadingState.M) {
-            // switch to reading state S and return the space character
-            state = ReadingState.S
-            Some(CharacterToken(' ', Category.SPACE))
-          } else {
-            // simply ignore this space token and remain in the same state
-            // go to the next token
-            nextToken
-          }
-        } else if (cat == Category.COMMENT_CHARACTER) {
-          // consume and ignore all characters until the end of the line
-          consume(inputStream.takeWhile(c => category(c) != Category.END_OF_LINE).size + 1)
-          nextToken
-        } else if (cat == Category.INVALID_CHARACTER) {
-          // report an error 
-          reportMessage(Level.ERROR, line, column, "invalid character found: " + read)
-          // and continue
-          nextToken
+  private def nextToken: Option[Token] = inputStream.headOption match {
+    case Some(read) =>
+      val cat = category(read)
+      // the read character is consumed
+      consume(1)
+      if (cat == Category.ESCAPE_CHARACTER) {
+        // if the read character is an escape character
+        // (whatever the state is), we want to scan a
+        // control sequence name
+        val name = ControlSequenceToken(controlSequenceName)
+        Some(name)
+      } else if (cat == Category.END_OF_LINE) {
+        if (state == ReadingState.N) {
+          // this is a new paragraph
+          line += 1
+          column = 1
+          Some(ControlSequenceToken("par"))
+        } else if (state == ReadingState.M) {
+          // this is a space
+          state = ReadingState.N
+          line += 1
+          column = 1
+          Some(CharacterToken(' ', Category.SPACE))
         } else {
-          // normal case
-          // middle of the line
-          state = ReadingState.M
-          // simple character token is returned with attached category
-          Some(CharacterToken(read, cat))
+          // state S, just drop this character and read the next one
+          nextToken
         }
-      case None =>
-        // end of stream
-        None
-    }
+      } else if (cat == Category.IGNORED_CHARACTER) {
+        // ignore this character and read the next one
+        // as if this one was not there
+        nextToken
+      } else if (cat == Category.SPACE) {
+        if (state == ReadingState.M) {
+          // switch to reading state S and return the space character
+          state = ReadingState.S
+          Some(CharacterToken(' ', Category.SPACE))
+        } else {
+          // simply ignore this space token and remain in the same state
+          // go to the next token
+          nextToken
+        }
+      } else if (cat == Category.COMMENT_CHARACTER) {
+        // consume and ignore all characters until the end of the line
+        consume(inputStream.takeWhile(c => category(c) != Category.END_OF_LINE).size + 1)
+        nextToken
+      } else if (cat == Category.INVALID_CHARACTER) {
+        // report an error 
+        reportMessage(Level.ERROR, line, column, "invalid character found: " + read)
+        // and continue
+        nextToken
+      } else {
+        // normal case
+        // middle of the line
+        state = ReadingState.M
+        // simple character token is returned with attached category
+        Some(CharacterToken(read, cat))
+      }
+    case None =>
+      // end of stream
+      None
   }
 
   private def controlSequenceName: String = {
@@ -173,92 +177,72 @@ class TeXTokenStreamBuilder(is: InputStream,
     val N, M, S = Value
   }
 
-  /* this class represents the character stream read as input.
-   * Special superscript characters are replaced
-   */
-  final private class CharacterStream(private var internalStream: Stream[Char]) extends Stream[Char] {
+  private val hexaLower = "0123456789abcdef"
 
-    def this(is: InputStream) = {
-      this(Stream.continually(is.read).takeWhile(_ != -1).map(_.toChar))
-    }
+  /* consumes n characters from the input stream) */
+  private def consumeChar(n: Int) {
+    internalStream = internalStream.drop(n)
+    column += n
+  }
 
-    private def hexaLower = "0123456789abcdef"
+  /* pushes the given character at the beginning of the input stream */
+  private def pushChar(c: Char) {
+    val old = internalStream
+    internalStream = c #:: old
+  }
 
-    def tailDefined = true
+  @scala.annotation.tailrec
+  private def nextChar: Option[Char] = {
+    internalStream.headOption match {
+      case Some(c) if category(c) == Category.SUPERSCRIPT =>
+        // we need a lookahead of 4 characters
+        val lookahead = internalStream.take(4).toList
 
-    override def isEmpty = internalStream.isEmpty
-
-    @scala.annotation.tailrec
-    override def head = {
-      // we need a lookahead of 4 characters
-      val lookahead = internalStream.take(4).toList
-      lookahead.headOption match {
-        case Some(c) =>
-          if (category(c) == Category.SUPERSCRIPT
-            && lookahead.size >= 3
-            && lookahead(1) == c) {
-            // we have `^^` followed by one or more characters
-            // check if it is of the form `^^XX` where X is one of `0123456789abcdef`
-            // (case sensitive)
-            if (lookahead.size == 4
-              && hexaLower.contains(lookahead(2))
-              && hexaLower.contains(lookahead(3))) {
-              // we are in the right case
-              // consume the 4 characters
-              consume(4)
-              val char = (lookahead(2) << 4 + lookahead(3)).toChar
-              pushCharacter(char)
-              // recursive call with new first character
-              head
-            } else if (lookahead(2) < 128) {
-              // it is of the form `^^A`
-              val letter = lookahead(2)
-              val code = if (letter < 64) {
-                letter + 64
-              } else {
-                letter - 64
-              }
-              // consume the 3 characters
-              consume(3)
-              // replace the head character
-              pushCharacter(code.toChar)
-              // recursive call with new first character
-              head
+        if (lookahead.size >= 3 && lookahead(1) == c) {
+          // we have `^^` followed by one or more characters
+          // check if it is of the form `^^XX` where X is one of `0123456789abcdef`
+          // (case sensitive)
+          if (lookahead.size == 4
+            && hexaLower.contains(lookahead(2))
+            && hexaLower.contains(lookahead(3))) {
+            // we are in the right case
+            // consume the 4 characters
+            consumeChar(4)
+            val char = (lookahead(2) << 4 + lookahead(3)).toChar
+            pushChar(char)
+            // recursive call with new first character
+            nextChar
+          } else if (lookahead(2) < 128) {
+            // it is of the form `^^A`
+            val letter = lookahead(2)
+            val code = if (letter < 64) {
+              letter + 64
             } else {
-              // other case, simply return the character
-              consume(1)
-              c
+              letter - 64
             }
+            // consume the 3 characters
+            consumeChar(3)
+            // replace the head character
+            pushChar(code.toChar)
+            // recursive call with new first character
+            nextChar
           } else {
-            c
+            // other case, simply return the character
+            consumeChar(1)
+            Some(c)
           }
-        case None =>
-          throw new NoSuchElementException("empty.head")
-      }
+        } else {
+          // other case, simply return the character
+          consumeChar(1)
+          Some(c)
+        }
+      case Some(c) =>
+        // other case, simply return the character
+        consumeChar(1)
+        Some(c)
+      case None =>
+        None
     }
-
-    override def tail = {
-      if (isEmpty) {
-        throw new NoSuchElementException("empty.head")
-      } else {
-        // call `head` to replace special characters if any
-        head
-        new CharacterStream(internalStream.tail)
-      }
-    }
-
-    /* consumes n characters from the input stream) */
-    private def consume(n: Int) {
-      internalStream = internalStream.drop(n)
-      column += n
-    }
-
-    /* pushes the given character at the beginning of the input stream */
-    private def pushCharacter(c: Char) {
-      val old = internalStream
-      internalStream = c #:: old
-    }
-
   }
 
 }
