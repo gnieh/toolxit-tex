@@ -49,11 +49,11 @@ class TeXInterpreter(is: InputStream) {
         // we encountered a control sequence
         // first fetch it from environment
         css(cs.name) match {
-          case Some(PrimitiveMacro(_, code)) =>
+          case Some(PrimitiveMacro(_, code, _, _)) =>
             // execute the code of this primitive macro
             stream = code(stream)
           case _ =>
-            // Should *NEVER* happen if the stream was correctly expanded
+            // Should *NEVER* happen as the stream was correctly expanded
             throw new ControlSequenceException("WTF is this control sequence: " + cs.name + "???")
         }
         true

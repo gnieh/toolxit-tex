@@ -15,7 +15,7 @@
 */
 package toolxit.astex
 
-import java.io.InputStream
+import java.io.{ InputStream, PushbackInputStream }
 
 import scala.collection.mutable.Map
 
@@ -83,6 +83,10 @@ class TeXTokenStreamBuilder(is: InputStream,
   // reading a definition (e.g. a macro definition)
   private[astex] var definition = false
 
+  // when this flag is set, and `definition` is also set, the parser
+  // will accept long macro definition
+  private[astex] var longdef = false
+
   // when this flag is set, it indicates, that the parser is currently
   // reading an argument list
   private[astex] var arguments = false
@@ -104,13 +108,14 @@ class TeXTokenStreamBuilder(is: InputStream,
         // if the read character is an escape character
         // (whatever the state is), we want to scan a
         // control sequence name
-        val name = ControlSequenceToken(controlSequenceName)
+        val cs = ControlSequenceToken(controlSequenceName)
         // now that we defined the control sequence name,
         // we might have to expand it
-        if (shallExpand(name)) {
-          Some(name)
+        if (shallExpand(cs)) {
+          expand(cs)
+          nextToken
         } else {
-          Some(name)
+          Some(cs)
         }
       } else if (cat == Category.END_OF_LINE) {
         if (state == ReadingState.N) {
@@ -201,6 +206,125 @@ class TeXTokenStreamBuilder(is: InputStream,
 
   }
 
+  /* expand the given control sequence. this method may consume following tokens */
+  private def expand(cs: ControlSequenceToken) {
+    val name = cs.name
+    if (Primitives.isIf(name)) {
+      // TODO expand an if
+    } else if (name == "") {
+      // TODO all other primitive cases
+    } else {
+      // this must be probably a user defined control sequence
+      css(name) match {
+        // this is a user macro, expand it
+        case Some(macro: UserMacro) => expandMacro(macro)
+        case _ => // XXX shall never happen!!!
+          throw new TeXException("I'd like to expand control sequence \\" + name
+            + ", but this case seems not to be implemented")
+      }
+    }
+  }
+
+  /* expand the user defined macro */
+  private def expandMacro(macro: UserMacro) {
+    // first read the arguments
+
+    @scala.annotation.tailrec
+    def streamMatches(stream: Stream[Token], delimiter: List[Token]): Boolean = {
+      delimiter match {
+        case token :: rest =>
+          stream.headOption match {
+            case Some(tok) if tok == token =>
+              streamMatches(stream.tail, rest)
+            case _ => false
+          }
+        case Nil =>
+          // empty delimiter, always match
+          true
+      }
+    }
+
+    def readArguments(parameters: List[List[Token]],
+                      akk: List[List[Token]]): List[List[Token]] = {
+      parameters match {
+        case param :: rest =>
+          param match {
+            case List(ParameterToken(id)) =>
+              // two cases
+              rest match {
+                case List(ParameterToken(_)) :: _ | Nil =>
+                  // non delimited parameter
+                  akk ::: List(List(nextToken.get))
+                case delimiter :: _ =>
+                  // delimited parameter, read until the next delimiter is found
+                  do {
+                    nextToken match {
+                      case Some(brace @ CharacterToken(_, Category.BEGINNING_OF_GROUP)) =>
+                        brace :: group
+                      case Some(token) =>
+                      case None =>
+                    }
+                  } while (true)
+                  akk ::: List(List(nextToken.get))
+              }
+            case delimiter if streamMatches(toStream, delimiter) =>
+              // consume the delimiter tokens
+              consume(delimiter.size)
+              // argument list stays unchanged
+              readArguments(rest, akk)
+            case _ =>
+              throw new TeXException(nextToken + " does not match definition of control sequence " + macro.cs)
+          }
+        case Nil =>
+          akk
+      }
+    }
+
+    val arguments = macro.parameters.foldLeft(List[List[Token]]()) { (result, token) =>
+      token match {
+        case List(ParameterToken(id)) =>
+        // two cases
+        case delimiter if streamMatches(toStream, delimiter) =>
+          // consume the delimiter tokens
+          consume(delimiter.size)
+          // argument list stays unchanged
+          result
+        case _ =>
+          throw new TeXException(nextToken + " does not match definition of control sequence " + macro.cs)
+      }
+      result
+    }
+  }
+
+  /* parse a group and return its corresponding token list (with closing brace). 
+   * the entire group is consumed even if it is not properly closed
+   * (in this case, the stream is read until the end of stream is reached) */
+  private def group: List[Token] = {
+    @scala.annotation.tailrec
+    def readGroup(result: List[Token], depth: Int): List[Token] = {
+      nextToken match {
+        case Some(tok @ CharacterToken(_, Category.BEGINNING_OF_GROUP)) =>
+          // nested group
+          readGroup(result ::: List(tok), depth + 1)
+        case Some(tok @ CharacterToken(_, Category.END_OF_GROUP)) =>
+          // end of group
+          if (depth == 0) {
+            // if it is the top-level group, return it
+            result ::: List(tok)
+          } else {
+            // else decrement the depth and continue reading
+            readGroup(result ::: List(tok), depth - 1)
+          }
+        case Some(token) =>
+          // some other token
+          readGroup(result ::: List(token), depth)
+        case None =>
+          result
+      }
+    }
+    readGroup(Nil, 0)
+  }
+
   /* consumes n characters from the input stream */
   private def consume(n: Int) {
     inputStream = inputStream.drop(n)
@@ -221,9 +345,11 @@ class TeXTokenStreamBuilder(is: InputStream,
           true
         case _ => false
       }
-      true
     }
   }
+
+  private def tokenStream =
+    Stream.continually(nextToken).takeWhile(_.isDefined)
 
   private object ReadingState extends Enumeration {
     // reading state for input reading

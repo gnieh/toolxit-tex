@@ -18,7 +18,7 @@ package toolxit.astex
 /** TeX works with a token stream */
 sealed trait Token
 
-/** A character token read as input. It may be one of the folowing tokens:
+/** A character token read as input. It may be one of the following tokens:
  *   - escape character (by default `\`)
  *   - beginning of group (by default `{`)
  *   - end of group (by default `}`)
@@ -44,5 +44,7 @@ case class CharacterToken(value: Char, category: Category.Value) extends Token
 /** A control sequence token has not category. */
 case class ControlSequenceToken(name: String) extends Token
 
-/** A parameter token may only occur in the parameter text of a control sequence */
+/** A parameter token may only occur in the parameter or replacement text
+ *  of a control sequence.
+ */
 case class ParameterToken(number: Int) extends Token

@@ -35,6 +35,7 @@ import scala.collection.mutable.Map
  *
  */
 class TeXEnvironment {
+  self =>
 
   /** Enters a new group. */
   def enterGroup {
@@ -81,9 +82,26 @@ class TeXEnvironment {
       environment.addControlSequence(name, cs)
   }
 
+  /** Exposes global control sequence management functions. */
+  object global {
+    /** Finds and returns the control sequence definition identified by its name.
+     *  If the control sequence is not found, returns `None`.
+     */
+    def apply(name: String) =
+      root.findControlSequence(name)
+
+    /** Adds or replace the global control sequence identified by the given name
+     *  with the new control sequence definition. This control sequence definition
+     *  is global and so will be available in any context.
+     */
+    def update(name: String, cs: ControlSequenceDef) =
+      root.addControlSequence(name, cs)
+  }
+
   // ==== internals ====
 
-  private[this] var environment = new Environment
+  private[this] val root = new Environment
+  private[this] var environment = root
 
   // set specific categories statically known at the beginning
   // when a fresh root environment is created

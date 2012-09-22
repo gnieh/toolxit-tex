@@ -64,6 +64,10 @@ object Primitives {
     "endinput",
     // the magic and power `the` command
     "the")
+
+  /** Indicates whether the given control sequence name is a primitve if control sequence */
+  def isIf(name: String) = name.startsWith("if") && expandablePrimitives.contains(name)
+
 }
 
 /** Defines and initializes primitive control sequence

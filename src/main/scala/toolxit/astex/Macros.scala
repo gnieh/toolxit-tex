@@ -31,7 +31,7 @@ sealed trait ControlSequenceDef {
  *
  */
 final case class UserMacro(cs: String,
-                           parameters: List[Token],
+                           parameters: List[List[Token]],
                            replacement: List[Token],
                            long: Boolean = false,
                            outer: Boolean = false)
@@ -41,7 +41,9 @@ final case class UserMacro(cs: String,
 
 /** A primitive macro is already installed into the TeX program at the beginning. */
 final case class PrimitiveMacro(cs: String,
-                                run: Stream[Token] => Stream[Token])
+                                run: Stream[Token] => Stream[Token],
+                                long: Boolean = false,
+                                outer: Boolean = false)
     extends ControlSequenceDef {
   val primitive = true
 }
@@ -50,4 +52,9 @@ final case class PrimitiveMacro(cs: String,
 final case class TokenListRegister(cs: String,
                                    replacement: List[Token]) extends ControlSequenceDef {
   val primitive = true
+}
+
+/** A user defined counter */
+final case class UserCounter(cs: String, value: Int) extends ControlSequenceDef {
+  val primitive = false
 }
