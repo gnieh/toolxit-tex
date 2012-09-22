@@ -32,6 +32,22 @@ import scala.collection.mutable.Map
  *   - `\`has category 0 (escaped character)
  *  This means that initially there is no grouping capability.
  *
+ *  Tokens produced by this string are expanded. This means, that when the returned token is
+ *  a control sequence, clients may be sure that this is a primitive macro that can be
+ *  executed as such. According to the TeX book, the parameter for user defined macros
+ *  are expanded in a `call-by-name` way, i.e. if a user defined macro is one of the parameters
+ *  of another user defined macro, the parameter is not evaluated before it is used in the
+ *  expanded macro text. If the parameter is not used, then it is never evaluated.
+ *  Expansion is performed as stated in the chapter 20 of ''The TeX Book''. Shortly these
+ *  are the rules summarizing when a control sequence is not expanded:
+ *   - during error recovery
+ *   - when tokens are skipped in an ignored conditional branch
+ *   - when reading macro arguments and arguments of some primitives
+ *   - when reading parameter list of a macro being defined
+ *   - when reading the replacement text for defined macros in some cases
+ *   - right after reading a `$` to determine whether the next token is also a `$`
+ *   - right after reading a ``` for defining an alphabetic constant
+ *
  *  @author Lucas Satabin
  *
  */
@@ -56,6 +72,21 @@ class TeXTokenStreamBuilder(is: InputStream,
   // the state in which the reader is
   private var state = ReadingState.N
 
+  // when this flag is set, the next token will not be expanded
+  private var noexpand = false
+
+  // when this flag is set, it indicates that the parser is deleting
+  // tokens in during error recovery
+  private[astex] var recovery = false
+
+  // when this flag is set, it indicates, that the parser is currently
+  // reading a definition (e.g. a macro definition)
+  private[astex] var definition = false
+
+  // when this flag is set, it indicates, that the parser is currently
+  // reading an argument list
+  private[astex] var arguments = false
+
   import environment._
 
   // line and column information for reporting
@@ -74,7 +105,13 @@ class TeXTokenStreamBuilder(is: InputStream,
         // (whatever the state is), we want to scan a
         // control sequence name
         val name = ControlSequenceToken(controlSequenceName)
-        Some(name)
+        // now that we defined the control sequence name,
+        // we might have to expand it
+        if (shallExpand(name)) {
+          Some(name)
+        } else {
+          Some(name)
+        }
       } else if (cat == Category.END_OF_LINE) {
         if (state == ReadingState.N) {
           // this is a new paragraph
@@ -164,9 +201,28 @@ class TeXTokenStreamBuilder(is: InputStream,
 
   }
 
-  /* consumes n characters from the input stream) */
+  /* consumes n characters from the input stream */
   private def consume(n: Int) {
     inputStream = inputStream.drop(n)
+  }
+
+  /* determines whether the control sequence shall be expanded
+   * the result might depend on the current context
+   */
+  private def shallExpand(cs: ControlSequenceToken) = {
+    if (noexpand || recovery || definition || arguments) {
+      false
+    } else {
+      // retrieve the control sequence
+      css(cs.name) match {
+        case Some(_: UserMacro) =>
+          true
+        case Some(cs) if Primitives.expandablePrimitives.contains(cs.cs) =>
+          true
+        case _ => false
+      }
+      true
+    }
   }
 
   private object ReadingState extends Enumeration {
@@ -177,20 +233,23 @@ class TeXTokenStreamBuilder(is: InputStream,
     val N, M, S = Value
   }
 
+  // ========== character stream building ==========
+
   private val hexaLower = "0123456789abcdef"
 
-  /* consumes n characters from the input stream) */
+  /* consumes n characters from the original input stream */
   private def consumeChar(n: Int) {
     internalStream = internalStream.drop(n)
     column += n
   }
 
-  /* pushes the given character at the beginning of the input stream */
+  /* pushes the given character at the beginning of the original input stream */
   private def pushChar(c: Char) {
     val old = internalStream
     internalStream = c #:: old
   }
 
+  /* returns the next character */
   @scala.annotation.tailrec
   private def nextChar: Option[Char] = {
     internalStream.headOption match {

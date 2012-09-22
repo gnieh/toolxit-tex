@@ -34,7 +34,7 @@ import scala.collection.mutable.Map
  *  @author Lucas Satabin
  *
  */
-class TeXEnvironment extends PrimitiveControlSequences {
+class TeXEnvironment {
 
   /** Enters a new group. */
   def enterGroup {
@@ -65,20 +65,20 @@ class TeXEnvironment extends PrimitiveControlSequences {
       environment.setCategory(char, category)
   }
 
-  /** Exposes macro management functions. */
-  object macro {
-    /** Finds and returns the macro identified by its name.
-     *  If the macro is not found in the given context, returns `None`.
+  /** Exposes control sequence management functions. */
+  object css {
+    /** Finds and returns the control sequence definition identified by its name.
+     *  If the control sequence is not found in the given context, returns `None`.
      */
     def apply(name: String) =
-      environment.findMacro(name)
+      environment.findControlSequence(name)
 
-    /** Adds or replace the macro identified by the given name
-     *  with the new macro definition. This macro definition is scoped to
-     *  the current group only, and will be discarded when leaving the group.
+    /** Adds or replace the control sequence identified by the given name
+     *  with the new control sequence definition. This control sequence definition
+     *  is scoped to  the current group only, and will be discarded when leaving the group.
      */
-    def update(name: String, macro: Macro) =
-      environment.addMacro(name, macro)
+    def update(name: String, cs: ControlSequenceDef) =
+      environment.addControlSequence(name, cs)
   }
 
   // ==== internals ====
@@ -93,14 +93,11 @@ class TeXEnvironment extends PrimitiveControlSequences {
   category('%') = Category.COMMENT_CHARACTER
   category('\\') = Category.ESCAPE_CHARACTER
 
-  // install primitive control sequences
-  intallPrimitives
-
   private class Environment(val parent: Option[Environment] = None) {
     // the map from character to category code
     private val categories = Map.empty[Char, Category.Value]
-    // the map from macro name to its internal representation
-    private val macros = Map.empty[String, Macro]
+    // the map from cs name to its internal representation
+    private val css = Map.empty[String, ControlSequenceDef]
 
     def category(c: Char): Category.Value = {
       categories.get(c) match {
@@ -122,15 +119,15 @@ class TeXEnvironment extends PrimitiveControlSequences {
       categories(c) = cat
     }
 
-    def addMacro(name: String, macro: Macro) {
-      macros(name) = macro
+    def addControlSequence(name: String, cs: ControlSequenceDef) = {
+      css(name) = cs
     }
 
-    def findMacro(name: String): Option[Macro] = macros.get(name) match {
-      case Some(m) => Some(m)
+    def findControlSequence(name: String): Option[ControlSequenceDef] = css.get(name) match {
+      case Some(cs) => Some(cs)
       case None =>
         parent match {
-          case Some(p) => p.findMacro(name)
+          case Some(p) => p.findControlSequence(name)
           case None => None
         }
     }

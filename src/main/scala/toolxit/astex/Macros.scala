@@ -15,8 +15,12 @@
 */
 package toolxit.astex
 
-sealed trait Macro {
+/** A control sequence definition represents the type and value of any known
+ *  control sequence.
+ */
+sealed trait ControlSequenceDef {
   val cs: String
+  val primitive: Boolean
 }
 
 /** A user defined macro has a name (control sequence) and a list of
@@ -31,9 +35,19 @@ final case class UserMacro(cs: String,
                            replacement: List[Token],
                            long: Boolean = false,
                            outer: Boolean = false)
-    extends Macro
+    extends ControlSequenceDef {
+  val primitive = false
+}
 
 /** A primitive macro is already installed into the TeX program at the beginning. */
 final case class PrimitiveMacro(cs: String,
                                 run: Stream[Token] => Stream[Token])
-    extends Macro
+    extends ControlSequenceDef {
+  val primitive = true
+}
+
+/** A token list register contains a list of token used in replacement of this name */
+final case class TokenListRegister(cs: String,
+                                   replacement: List[Token]) extends ControlSequenceDef {
+  val primitive = true
+}
