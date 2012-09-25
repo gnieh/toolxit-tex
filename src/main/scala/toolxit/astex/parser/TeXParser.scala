@@ -31,7 +31,7 @@ trait TeXParser extends Parser {
 
   def tokens: Rule1[List[Token]]
 
-  def token: Rule1[Option[Token]]
+  def token: Rule1[Token]
 
   def controlsequence: Rule1[ControlSequenceToken]
 

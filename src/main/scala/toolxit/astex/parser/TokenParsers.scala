@@ -28,18 +28,19 @@ abstract class TokenParsers extends CharacterParsers {
   import environment._
 
   def tokens: Rule1[List[Token]] = rule {
-    zeroOrMore(token) ~~> (_.flatten)
+    zeroOrMore(token)
   }
 
-  def token: Rule1[Option[Token]] = rule {
-    whitespace ~ (comment ~ push(None) |
-      ((controlsequence | parameter ~ run(ReadingState.M) | EOL |
+  def token: Rule1[Token] = rule {
+    // ignore whitespace and comments
+    zeroOrMore(whitespace | comment) ~
+      (controlsequence | parameter ~ run(ReadingState.M) | EOL |
         (character ~~~% { c =>
           if (c.category == Category.SPACE)
             state = ReadingState.S
           else
             state = ReadingState.M
-        })) ~~> (t => Some(t))))
+        }))
   }
 
   def controlsequence: Rule1[ControlSequenceToken] = rule {

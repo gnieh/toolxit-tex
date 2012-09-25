@@ -132,10 +132,10 @@ abstract class CharacterParsers extends TeXParser {
   }
 
   protected def whitespace: Rule0 = rule {
-    zeroOrMore(SPACE ~~? (_ => state == ReadingState.S || state == ReadingState.N))
+    oneOrMore(SPACE ~~? (_ => state == ReadingState.S || state == ReadingState.N))
   }
 
-  protected def ignored(r: => Rule1[_]): Rule0 = rule {
+  protected def ignored(r: Rule1[_]): Rule0 = rule {
     r ~~% ((_: Any) => ())
   }
 

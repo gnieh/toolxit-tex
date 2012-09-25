@@ -36,9 +36,9 @@ import org.parboiled.errors.ParseError
  *  @author Lucas Satabin
  *
  */
-class TeXParseRunner(rule: Rule1[Token], input: Input) {
+class TeXParseRunner(parser: TeXParser, input: Input) {
 
-  private val runner = new InternalParseRunner
+  private lazy val runner = new InternalParseRunner
 
   /** Iterates over the generated results until the end of input is reached.
    *  Parsing results given to the function are non empty
@@ -77,7 +77,7 @@ class TeXParseRunner(rule: Rule1[Token], input: Input) {
   def run: MonadicParsingResult[Token] =
     MonadicParsingResult(runner.run)
 
-  private class InternalParseRunner extends AbstractParseRunner[Token](rule)
+  private class InternalParseRunner extends AbstractParseRunner[Token](parser.token)
       with MatchHandler {
 
     // the stack containing the expanded tokens if any
@@ -87,11 +87,11 @@ class TeXParseRunner(rule: Rule1[Token], input: Input) {
       Stack.empty[Token]
 
     // the input buffer
-    private var inputBuffer: InputBuffer =
+    private val inputBuffer: InputBuffer =
       input.inputBuffer
 
     // the root context
-    private var rootContext: MatcherContext[Token] =
+    private val rootContext: MatcherContext[Token] =
       createRootContext(inputBuffer, this, true)
 
     // never invoked, only there to conform to the interface
@@ -107,7 +107,7 @@ class TeXParseRunner(rule: Rule1[Token], input: Input) {
       } else {
         val matched = if (expanded.isEmpty) {
           // run the matcher, no tokens already expanded in the stack
-          rootContext.runMatcher
+          rootContext.getSubContext(getRootMatcher).runMatcher
         } else {
           // push the already expanded token onto the stack
           getValueStack.push(expand(expanded.pop))
@@ -123,7 +123,36 @@ class TeXParseRunner(rule: Rule1[Token], input: Input) {
       context.getMatcher.`match`(context)
     }
 
-    private def expand(token: Token) = token // TODO
+    // ================ internals ================
+
+    import parser.environment._
+
+    private var noexpand = false
+
+    private def expand(token: Token) = token match {
+      case ControlSequenceToken(name) if shallExpand(name) =>
+        // TODO
+        token
+      case _ => token
+    }
+
+    /* determines whether the control sequence shall be expanded
+   * the result might depend on the current context
+   */
+    private def shallExpand(name: String) = {
+      if (noexpand) {
+        false
+      } else {
+        // retrieve the control sequence
+        css(name) match {
+          case Some(_: UserMacro) =>
+            true
+          case Some(cs) if Primitives.expandablePrimitives.contains(cs.cs) =>
+            true
+          case _ => false
+        }
+      }
+    }
 
   }
 }

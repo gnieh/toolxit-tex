@@ -87,15 +87,15 @@ trait MacroParsers {
   // ================ helper parsers ================
 
   /* parses a character token which has same value and same category code as the given one */
-  protected def sameAs(token: CharacterToken) = rule {
+  protected def sameAs(token: CharacterToken): Rule1[CharacterToken] = rule {
     character ~~~? (c => c == token)
   }
 
   /* an argument is either a group or single character token */
-  protected def argument = rule {
+  protected def argument: Rule1[List[Token]] = rule {
     // braces are dropped from the outermost group
     group ~~> (tokens => tokens.tail.dropRight(1)) |
-      (token ~~> (t => t.toList))
+      (token ~~> (t => List(t)))
   }
 
 }
