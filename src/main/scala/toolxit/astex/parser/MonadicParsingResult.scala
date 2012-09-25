@@ -64,19 +64,31 @@ sealed trait MonadicParsingResult[+T] {
   /** Did the parser run generate error(s)? */
   def hasErrors: Boolean = parseErrors.nonEmpty
 
+  /** Is the result empty? */
+  def isEmpty: Boolean
+
+  /** Is the result non empty? */
+  def nonEmpty: Boolean = !isEmpty
+
   /** Transforms the returned value according to the transformation function. */
   def map[U](f: T => U): MonadicParsingResult[U] =
-    if (matched) OkResult(f(get)) else FailedResult(parseErrors)
+    if (matched && nonEmpty) OkResult(f(get))
+    else if (isEmpty) EmptyResult
+    else FailedResult(parseErrors)
 
   /** Transforms the returned value according to the transformation function. */
   def flatMap[U](f: T => MonadicParsingResult[U]): MonadicParsingResult[U] =
-    if (matched) f(get) else FailedResult(parseErrors)
+    if (matched && nonEmpty) f(get)
+    else if (isEmpty) EmptyResult
+    else FailedResult(parseErrors)
 
 }
 
 /** A non empty monadic parsing result (successful or fail). */
 sealed trait NonEmptyMonadicParsingResult[+T]
-  extends MonadicParsingResult[T]
+    extends MonadicParsingResult[T] {
+  def isEmpty = false
+}
 
 /** Companion object exposing extractor for non empty monadic results. */
 object NonEmptyMonadicParsingResult {
@@ -115,6 +127,8 @@ case object EmptyResult
     extends MonadicParsingResult[Nothing] {
 
   val matched = true
+
+  def isEmpty = true
 
   def get = throw new NoSuchElementException("EmptyResult.get")
 
