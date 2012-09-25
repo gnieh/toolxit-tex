@@ -68,6 +68,23 @@ class TeXEnvironment {
 
   /** Exposes control sequence management functions. */
   object css {
+
+    /** Exposes global control sequence management functions. */
+    object global {
+      /** Finds and returns the control sequence definition identified by its name.
+       *  If the control sequence is not found, returns `None`.
+       */
+      def apply(name: String) =
+        root.findControlSequence(name)
+
+      /** Adds or replace the global control sequence identified by the given name
+       *  with the new control sequence definition. This control sequence definition
+       *  is global and so will be available in any context.
+       */
+      def update(name: String, cs: ControlSequenceDef) =
+        root.addControlSequence(name, cs)
+    }
+
     /** Finds and returns the control sequence definition identified by its name.
      *  If the control sequence is not found in the given context, returns `None`.
      */
@@ -80,22 +97,6 @@ class TeXEnvironment {
      */
     def update(name: String, cs: ControlSequenceDef) =
       environment.addControlSequence(name, cs)
-  }
-
-  /** Exposes global control sequence management functions. */
-  object global {
-    /** Finds and returns the control sequence definition identified by its name.
-     *  If the control sequence is not found, returns `None`.
-     */
-    def apply(name: String) =
-      root.findControlSequence(name)
-
-    /** Adds or replace the global control sequence identified by the given name
-     *  with the new control sequence definition. This control sequence definition
-     *  is global and so will be available in any context.
-     */
-    def update(name: String, cs: ControlSequenceDef) =
-      root.addControlSequence(name, cs)
   }
 
   // ==== internals ====

@@ -14,17 +14,20 @@
 * limitations under the License.
 */
 package toolxit.astex
+package parser
 
 import org.parboiled.scala._
 
-/** @author Lucas Satabin
+/** Provides parsers for basic characters that may then be transformed to tokens.
+ *
+ *  @author Lucas Satabin
  *
  */
-class TeXParser(environment: TeXEnvironment) extends Parser {
+abstract class CharacterParsers extends TeXParser {
 
   import environment._
 
-  private object ReadingState extends Enumeration {
+  protected object ReadingState extends Enumeration {
     // reading state for input reading
     // N = new line
     // M = middle of a line
@@ -32,132 +35,77 @@ class TeXParser(environment: TeXEnvironment) extends Parser {
     val N, M, S = Value
   }
 
-  private var state = ReadingState.N
+  protected var state = ReadingState.N
 
-  def tokens: Rule1[List[Token]] = rule {
-    zeroOrMore(token) ~~> (_.flatten)
-  }
-
-  def token: Rule1[Option[Token]] = rule {
-    whitespace ~ (comment ~ push(None) |
-      ((controlsequence | parameter ~ run(ReadingState.M) | EOL |
-        (character ~~~% { c =>
-          if (c.category == Category.SPACE)
-            state = ReadingState.S
-          else
-            state = ReadingState.M
-        })) ~~> (t => Some(t))))
-  }
-
-  def controlsequence: Rule1[ControlSequenceToken] = rule {
-    ignored(ESCAPE_CHARACTER) ~ csname ~~> ControlSequenceToken
-  }
-
-  def parameter: Rule1[ParameterToken] = rule {
-    ignored(PARAMETER) ~ ("0" - "9") ~> (c => ParameterToken(c.toInt))
-  }
-
-  def character: Rule1[CharacterToken] = rule {
-    ANY ~~> (c => CharacterToken(c, category(c)))
-  }
-
-  def comment: Rule0 = rule {
-    COMMENT_CHARACTER ~ zeroOrMore(any ~~? (c => category(c) != Category.END_OF_LINE)) ~ END_OF_LINE ~~% ((_, _) => ())
-  }
-
-  def csname: Rule1[String] = rule {
-    (oneOrMore(LETTER) ~~> (_.mkString)
-      | ANY ~~> (_.toString)) ~ run(state = ReadingState.S)
-  }
-
-  // ================ the 16 category code parsers ================
-
-  private def ESCAPE_CHARACTER: Rule1[Char] = rule {
+  def ESCAPE_CHARACTER: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.ESCAPE_CHARACTER)
   }
 
-  private def BEGINNING_OF_GROUP: Rule1[Char] = rule {
+  def BEGINNING_OF_GROUP: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.BEGINNING_OF_GROUP)
   }
 
-  private def END_OF_GROUP: Rule1[Char] = rule {
+  def END_OF_GROUP: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.END_OF_GROUP)
   }
 
-  private def MATH_SHIFT: Rule1[Char] = rule {
+  def MATH_SHIFT: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.MATH_SHIFT)
   }
 
-  private def ALIGNMENT_TAB: Rule1[Char] = rule {
+  def ALIGNMENT_TAB: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.ALIGNMENT_TAB)
   }
 
-  private def END_OF_LINE: Rule1[Char] = rule {
+  def END_OF_LINE: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.END_OF_LINE)
   }
 
-  private def PARAMETER: Rule1[Char] = rule {
+  def PARAMETER: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.PARAMETER)
   }
 
-  private def RAW_SUPERSCRIPT: Rule1[Char] = rule {
+  def RAW_SUPERSCRIPT: Rule1[Char] = rule {
     any ~? (c => category(c(0)) == Category.SUPERSCRIPT)
   }
 
-  private def SUPERSCRIPT: Rule1[Char] = rule {
+  def SUPERSCRIPT: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.SUPERSCRIPT)
   }
 
-  private def SUBSCRIPT: Rule1[Char] = rule {
+  def SUBSCRIPT: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.SUBSCRIPT)
   }
 
-  private def IGNORED_CHARACTER: Rule0 = rule {
+  def IGNORED_CHARACTER: Rule0 = rule {
     ignored(ANY) ~? (c => category(c(0)) == Category.IGNORED_CHARACTER)
   }
 
-  private def SPACE: Rule1[Char] = rule {
+  def SPACE: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.SPACE)
   }
 
-  private def LETTER: Rule1[Char] = rule {
+  def LETTER: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.LETTER)
   }
 
-  private def OTHER_CHARACTER: Rule1[Char] = rule {
+  def OTHER_CHARACTER: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.OTHER_CHARACTER)
   }
 
-  private def ACTIVE_CHARACTER: Rule1[Char] = rule {
+  def ACTIVE_CHARACTER: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.ACTIVE_CHARACTER)
   }
 
-  private def COMMENT_CHARACTER: Rule1[Char] = rule {
+  def COMMENT_CHARACTER: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.COMMENT_CHARACTER)
   }
 
-  private def INVALID_CHARACTER: Rule1[Char] = rule {
+  def INVALID_CHARACTER: Rule1[Char] = rule {
     ANY ~? (c => category(c(0)) == Category.INVALID_CHARACTER)
   }
 
-  // ================ helper parsers ================
-
-  private def EOL: Rule1[Token] = rule {
-    END_OF_LINE ~ test(state != ReadingState.S) ~~> { _ =>
-      if (state == ReadingState.N) {
-        ControlSequenceToken("par")
-      } else {
-        state = ReadingState.N
-        CharacterToken(' ', Category.SPACE)
-      }
-    }
-  }
-
   private val hexaLower = "0123456789abcdef"
-
-  def any = rule {
-    org.parboiled.scala.ANY ~> (c => c(0))
-  }
 
   def ANY: Rule1[Char] = rule {
     (RAW_SUPERSCRIPT ~ RAW_SUPERSCRIPT ~~? ((sup1, sup2) => sup1 == sup2) ~
@@ -179,12 +127,27 @@ class TeXParser(environment: TeXEnvironment) extends Parser {
         any
   }
 
-  private def whitespace: Rule0 = rule {
+  protected def any = rule {
+    org.parboiled.scala.ANY ~> (c => c(0))
+  }
+
+  protected def whitespace: Rule0 = rule {
     zeroOrMore(SPACE ~~? (_ => state == ReadingState.S || state == ReadingState.N))
   }
 
-  private def ignored(r: => Rule1[_]): Rule0 = rule {
+  protected def ignored(r: => Rule1[_]): Rule0 = rule {
     r ~~% ((_: Any) => ())
+  }
+
+  protected def EOL: Rule1[Token] = rule {
+    END_OF_LINE ~ test(state != ReadingState.S) ~~> { _ =>
+      if (state == ReadingState.N) {
+        ControlSequenceToken("par")
+      } else {
+        state = ReadingState.N
+        CharacterToken(' ', Category.SPACE)
+      }
+    }
   }
 
 }

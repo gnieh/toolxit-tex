@@ -31,7 +31,7 @@ sealed trait ControlSequenceDef {
  *
  */
 final case class UserMacro(cs: String,
-                           parameters: List[List[Token]],
+                           parameters: List[Parameter],
                            replacement: List[Token],
                            long: Boolean = false,
                            outer: Boolean = false)

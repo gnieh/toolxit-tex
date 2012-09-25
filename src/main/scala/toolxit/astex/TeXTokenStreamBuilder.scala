@@ -217,7 +217,7 @@ class TeXTokenStreamBuilder(is: InputStream,
       // this must be probably a user defined control sequence
       css(name) match {
         // this is a user macro, expand it
-        case Some(macro: UserMacro) => expandMacro(macro)
+        case Some(macro: UserMacro) => // TODO expandMacro(macro)
         case _ => // XXX shall never happen!!!
           throw new TeXException("I'd like to expand control sequence \\" + name
             + ", but this case seems not to be implemented")
@@ -226,75 +226,75 @@ class TeXTokenStreamBuilder(is: InputStream,
   }
 
   /* expand the user defined macro */
-  private def expandMacro(macro: UserMacro) {
-    // first read the arguments
-
-    @scala.annotation.tailrec
-    def streamMatches(stream: Stream[Token], delimiter: List[Token]): Boolean = {
-      delimiter match {
-        case token :: rest =>
-          stream.headOption match {
-            case Some(tok) if tok == token =>
-              streamMatches(stream.tail, rest)
-            case _ => false
-          }
-        case Nil =>
-          // empty delimiter, always match
-          true
-      }
-    }
-
-    def readArguments(parameters: List[List[Token]],
-                      akk: List[List[Token]]): List[List[Token]] = {
-      parameters match {
-        case param :: rest =>
-          param match {
-            case List(ParameterToken(id)) =>
-              // two cases
-              rest match {
-                case List(ParameterToken(_)) :: _ | Nil =>
-                  // non delimited parameter
-                  akk ::: List(List(nextToken.get))
-                case delimiter :: _ =>
-                  // delimited parameter, read until the next delimiter is found
-                  do {
-                    nextToken match {
-                      case Some(brace @ CharacterToken(_, Category.BEGINNING_OF_GROUP)) =>
-                        brace :: group
-                      case Some(token) =>
-                      case None =>
-                    }
-                  } while (true)
-                  akk ::: List(List(nextToken.get))
-              }
-            case delimiter if streamMatches(toStream, delimiter) =>
-              // consume the delimiter tokens
-              consume(delimiter.size)
-              // argument list stays unchanged
-              readArguments(rest, akk)
-            case _ =>
-              throw new TeXException(nextToken + " does not match definition of control sequence " + macro.cs)
-          }
-        case Nil =>
-          akk
-      }
-    }
-
-    val arguments = macro.parameters.foldLeft(List[List[Token]]()) { (result, token) =>
-      token match {
-        case List(ParameterToken(id)) =>
-        // two cases
-        case delimiter if streamMatches(toStream, delimiter) =>
-          // consume the delimiter tokens
-          consume(delimiter.size)
-          // argument list stays unchanged
-          result
-        case _ =>
-          throw new TeXException(nextToken + " does not match definition of control sequence " + macro.cs)
-      }
-      result
-    }
-  }
+  //  private def expandMacro(macro: UserMacro) {
+  //    // first read the arguments
+  //
+  //    @scala.annotation.tailrec
+  //    def streamMatches(stream: Stream[Token], delimiter: List[Token]): Boolean = {
+  //      delimiter match {
+  //        case token :: rest =>
+  //          stream.headOption match {
+  //            case Some(tok) if tok == token =>
+  //              streamMatches(stream.tail, rest)
+  //            case _ => false
+  //          }
+  //        case Nil =>
+  //          // empty delimiter, always match
+  //          true
+  //      }
+  //    }
+  //
+  //    def readArguments(parameters: List[List[Token]],
+  //                      akk: List[List[Token]]): List[List[Token]] = {
+  //      parameters match {
+  //        case param :: rest =>
+  //          param match {
+  //            case List(ParameterToken(id)) =>
+  //              // two cases
+  //              rest match {
+  //                case List(ParameterToken(_)) :: _ | Nil =>
+  //                  // non delimited parameter
+  //                  akk ::: List(List(nextToken.get))
+  //                case delimiter :: _ =>
+  //                  // delimited parameter, read until the next delimiter is found
+  //                  do {
+  //                    nextToken match {
+  //                      case Some(brace @ CharacterToken(_, Category.BEGINNING_OF_GROUP)) =>
+  //                        brace :: group
+  //                      case Some(token) =>
+  //                      case None =>
+  //                    }
+  //                  } while (true)
+  //                  akk ::: List(List(nextToken.get))
+  //              }
+  //            case delimiter if streamMatches(toStream, delimiter) =>
+  //              // consume the delimiter tokens
+  //              consume(delimiter.size)
+  //              // argument list stays unchanged
+  //              readArguments(rest, akk)
+  //            case _ =>
+  //              throw new TeXException(nextToken + " does not match definition of control sequence " + macro.cs)
+  //          }
+  //        case Nil =>
+  //          akk
+  //      }
+  //    }
+  //
+  //    val arguments = macro.parameters.foldLeft(List[List[Token]]()) { (result, token) =>
+  //      token match {
+  //        case List(ParameterToken(id)) =>
+  //        // two cases
+  //        case delimiter if streamMatches(toStream, delimiter) =>
+  //          // consume the delimiter tokens
+  //          consume(delimiter.size)
+  //          // argument list stays unchanged
+  //          result
+  //        case _ =>
+  //          throw new TeXException(nextToken + " does not match definition of control sequence " + macro.cs)
+  //      }
+  //      result
+  //    }
+  //  }
 
   /* parse a group and return its corresponding token list (with closing brace). 
    * the entire group is consumed even if it is not properly closed
