@@ -40,7 +40,13 @@ class TeXParseRunner(rule: Rule1[Token], input: Input) {
 
   private val runner = new InternalParseRunner
 
-  def foreach(f: MonadicParsingResult[Token] => Unit) {
+  /** Iterates over the generated results until the end of input is reached.
+   *  Parsing results given to the function are non empty
+   *  (i.e. not [[toolxit.astex.parser.EmptyResult]]).
+   *  This method '''always''' iterates over the entire input, even if
+   *  the `run` method was already called several times.
+   */
+  def foreach(f: NonEmptyMonadicParsingResult[Token] => Unit) {
 
     val runner = new InternalParseRunner
 
@@ -50,7 +56,7 @@ class TeXParseRunner(rule: Rule1[Token], input: Input) {
     def iterate {
       MonadicParsingResult(runner.run) match {
         case EmptyResult => // EOI reached, stop iteration
-        case result =>
+        case NonEmptyMonadicParsingResult(result) =>
           // some result was returned
           // apply function to it
           f(result)
