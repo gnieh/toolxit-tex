@@ -15,11 +15,26 @@
 */
 package toolxit.astex.parser
 
-import org.parboiled.scala.ParsingResult
+import org.parboiled.support.ParsingResult
 import org.parboiled.errors.ParseError
-import org.parboiled.support.ValueStack
 
 import java.util.NoSuchElementException
+
+import scala.collection.JavaConverters._
+
+object MonadicParsingResult {
+  def apply[T](result: ParsingResult[T]): MonadicParsingResult[T] = result match {
+    case null =>
+      // end of input reached
+      EmptyResult
+    case result if result.matched =>
+      // a token was successfully parsed
+      OkResult(result.resultValue)
+    case result =>
+      // there was a parse error
+      FailedResult(result.parseErrors.asScala.toList)
+  }
+}
 
 /** @author Lucas Satabin
  *

@@ -18,11 +18,12 @@ package parser
 
 import scala.collection.mutable.Stack
 
-import org.parboiled._
+import org.parboiled.{ MatchHandler, MatcherContext }
 import org.parboiled.scala.{ Rule1, Input }
 import org.parboiled.parserunners.AbstractParseRunner
-import org.parboiled.buffers._
-import org.parboiled.support._
+import org.parboiled.buffers.InputBuffer
+import org.parboiled.support.ParsingResult
+import org.parboiled.errors.ParseError
 
 /** A parse runner that performs macro expansion where needed. Thus, returned
  *  control sequence tokens are either primitive control sequences or unknown
@@ -39,15 +40,36 @@ class TeXParseRunner(rule: Rule1[Token], input: Input) {
 
   private val runner = new InternalParseRunner
 
-  def foreach(f: Token => Unit) = {
+  def foreach(f: MonadicParsingResult[Token] => Unit) {
 
     val runner = new InternalParseRunner
 
+    // iterate over the tokens until the end of input is reached
+    // and execute the given function on each returned token
+    @scala.annotation.tailrec
+    def iterate {
+      MonadicParsingResult(runner.run) match {
+        case EmptyResult => // EOI reached, stop iteration
+        case result =>
+          // some result was returned
+          // apply function to it
+          f(result)
+          // iterate
+          iterate
+      }
+    }
+
+    iterate
+
   }
 
-  def run: MonadicParsingResult[Token] = {
-    EmptyResult
-  }
+  /** Parses and returns one more (expanded) token, returns
+   *  [[tookxit.astex.parser.EmptyResult]] if the end of input was reached.
+   *  This method may be invoked several times, the input will be parsed repeatedly
+   *  until its end.
+   */
+  def run: MonadicParsingResult[Token] =
+    MonadicParsingResult(runner.run)
 
   private class InternalParseRunner extends AbstractParseRunner[Token](rule)
       with MatchHandler {
@@ -55,42 +77,40 @@ class TeXParseRunner(rule: Rule1[Token], input: Input) {
     // the stack containing the expanded tokens if any
     // as long as this stack is not empty, the runner does not read more tokens
     // from the input but consumes these ones
-    private val expanded = Stack.empty[Token]
+    private val expanded =
+      Stack.empty[Token]
+
+    // the input buffer
+    private var inputBuffer: InputBuffer =
+      input.inputBuffer
 
     // the root context
-    private var rootContext: MatcherContext[Token] = null
+    private var rootContext: MatcherContext[Token] =
+      createRootContext(inputBuffer, this, true)
 
-    // 
-    private var inputBuffer: InputBuffer = null
-
-    def run(input: InputBuffer) = {
-
-      // clear the stack
-      expanded.clear
-      // set the new context
-      rootContext = createRootContext(input, this, true)
-      // save the input
-      inputBuffer = input
-
-      // run this runner once
-      run
-
-    }
+    // never invoked, only there to conform to the interface
+    def run(input: InputBuffer) =
+      throw new UnsupportedOperationException("InternalParseRunner.run(InputBuffer) shall never be called")
 
     def run = {
       // empty the value stack
       resetValueStack
 
-      val matched = if (expanded.isEmpty) {
-        rootContext.runMatcher
+      if (rootContext.getCurrentIndex >= input.input.size) {
+        null
       } else {
-        // push the already expanded token onto the stack
-        getValueStack.push(expand(expanded.pop))
-        // the runner matched a token
-        true
+        val matched = if (expanded.isEmpty) {
+          // run the matcher, no tokens already expanded in the stack
+          rootContext.runMatcher
+        } else {
+          // push the already expanded token onto the stack
+          getValueStack.push(expand(expanded.pop))
+          // the runner matched a token
+          true
+        }
+        // create and return the result
+        new ParsingResult(matched, null, getValueStack, getParseErrors, inputBuffer)
       }
-      // create and return the result
-      new ParsingResult(matched, null, getValueStack, getParseErrors, inputBuffer)
     }
 
     def `match`(context: MatcherContext[_]) = {
