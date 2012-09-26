@@ -16,7 +16,9 @@
 package toolxit.astex
 package parser
 
+import org.parboiled.Context
 import org.parboiled.scala._
+import org.parboiled.buffers.{ InputBuffer, DefaultInputBuffer }
 
 /** Builds a token stream from an input character stream.
  *  A token stream returns the token read in the user input.
@@ -34,5 +36,23 @@ import org.parboiled.scala._
  *
  */
 class TeXParserImpl(val environment: TeXEnvironment)
-  extends TokenParsers
-  with MacroParsers
+    extends TokenParsers
+    with MacroParsers {
+
+  def withRemaining[T](r: Rule1[T]): Rule1[(T, InputBuffer)] = rule {
+    r ~~> withContext { (value, context) =>
+      val newStart = context.getMatchEndIndex
+      val buffer = context.getInputBuffer match {
+        case lazyBuffer: StreamInputBuffer =>
+          // in this case just drop the read tokens
+          lazyBuffer.drop(newStart)
+        case buffer =>
+          // build a new buffer minus the read characters
+          new DefaultInputBuffer(buffer.extract(newStart, Int.MaxValue).toCharArray)
+
+      }
+      (value, buffer)
+    }
+  }
+
+}

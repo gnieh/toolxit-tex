@@ -49,7 +49,7 @@ class TeXInterpreter(is: InputStream) {
         // we encountered a control sequence
         // first fetch it from environment
         css(cs.name) match {
-          case Some(PrimitiveMacro(_, code, _, _)) =>
+          case Some(PrimitiveMacro(_, code)) =>
             // execute the code of this primitive macro
             stream = code(stream)
           case _ =>

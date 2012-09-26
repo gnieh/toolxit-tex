@@ -32,18 +32,18 @@ sealed trait ControlSequenceDef {
  */
 final case class UserMacro(cs: String,
                            parameters: List[Parameter],
-                           replacement: List[Token],
-                           long: Boolean = false,
-                           outer: Boolean = false)
+                           replacement: List[Token])(
+                             long: Boolean = false,
+                             outer: Boolean = false)
     extends ControlSequenceDef {
   val primitive = false
 }
 
 /** A primitive macro is already installed into the TeX program at the beginning. */
 final case class PrimitiveMacro(cs: String,
-                                run: Stream[Token] => Stream[Token],
-                                long: Boolean = false,
-                                outer: Boolean = false)
+                                run: Stream[Token] => Stream[Token])(
+                                  long: Boolean = false,
+                                  outer: Boolean = false)
     extends ControlSequenceDef {
   val primitive = true
 }

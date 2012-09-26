@@ -17,6 +17,7 @@ package toolxit.astex
 package parser
 
 import org.parboiled.scala._
+import org.parboiled.buffers.InputBuffer
 
 /** A TeX parser provides a way to parse a TeX input and return a list of tokens
  *  expanded as needed.
@@ -84,5 +85,7 @@ trait TeXParser extends Parser {
   def group: Rule1[List[Token]]
 
   def argumentParser(parameters: List[Parameter]): Rule1[List[List[Token]]]
+
+  def withRemaining[T](rule: Rule1[T]): Rule1[(T, InputBuffer)]
 
 }
