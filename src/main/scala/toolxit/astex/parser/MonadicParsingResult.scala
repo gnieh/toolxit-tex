@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 
 /** Companion object used to create [[toolxit.astex.parser.MonadicParsingResult]]s. */
 object MonadicParsingResult {
-  /** Creates a [[toolxit.astex.parser.MonadicParsingResult] from a `ParsingResult` with
+  /** Creates a [[toolxit.astex.parser.MonadicParsingResult]] from a `ParsingResult` with
    *  following rules:
    *   - if `result` is `null`, [[toolxit.astex.parser.EmptyResult]] is returned
    *   - if `result` matched, a [[toolxit.astex.parser.OkResult]] is returned

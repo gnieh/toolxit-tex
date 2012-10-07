@@ -25,8 +25,8 @@ import org.parboiled.scala._
  *  @author Lucas Satabin
  *
  */
-trait MacroParsers {
-  self: TokenParsers =>
+trait MacroParsers extends Parser {
+  this: TokenParsers =>
 
   import environment._
 
@@ -57,7 +57,7 @@ trait MacroParsers {
 
     def delimiter(del: List[CharacterToken]): Rule0 = rule {
       del.foldLeft(EMPTY) { (rule, token) =>
-        rule ~ ignored(sameAs(token))
+        rule ~ sameAs(token)
       }
     }
 
@@ -85,11 +85,6 @@ trait MacroParsers {
   }
 
   // ================ helper parsers ================
-
-  /* parses a character token which has same value and same category code as the given one */
-  protected def sameAs(token: CharacterToken): Rule1[CharacterToken] = rule {
-    character ~~~? (c => c == token)
-  }
 
   /* an argument is either a group or single character token */
   protected def argument: Rule1[List[Token]] = rule {

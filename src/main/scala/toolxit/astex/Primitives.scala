@@ -69,108 +69,122 @@ object Primitives {
   def isIf(name: String) =
     name.startsWith("if") && expandablePrimitives.contains(name)
 
-}
+  val integerParameter = Set(
+    "pretolerance", // (badness tolerance before hyphenation)
+    "tolerance", // (badness tolerance after hyphenation)
+    "hbadness", // (badness above which bad hboxes will be shown)
+    "vbadness", // (badness above which bad vboxes will be shown)
+    "linepenalty", // (amount added to badness of every line in a paragraph)
+    "hyphenpenalty", // (penalty for line break after discretionary hyphen)
+    "exhyphenpenalty", // (penalty for line break after explicit hyphen)
+    "binoppenalty", // (penalty for line break after binary operation)
+    "relpenalty", // (penalty for line break after math relation)
+    "clubpenalty", // (penalty for creating a club line at bottom of page)
+    "widowpenalty", // (penalty for creating a widow line at top of page)
+    "displaywidowpenalty", // (ditto, before a display)
+    "brokenpenalty", // (penalty for page break after a hyphenated line)
+    "predisplaypenalty", // (penalty for page break just before a display)
+    "postdisplaypenalty", // (penalty for page break just after a display)
+    "interlinepenalty", // (additional penalty for page break between lines)
+    "floatingpenalty", // (penalty for insertions that are split)
+    "outputpenalty", // (penalty at the current page break)
+    "doublehyphendemerits", // (demerits for consecutive broken lines)
+    "finalhyphendemerits", // (demerits for a penultimate broken line)
+    "adjdemerits", // (demerits for adjacent incompatible lines)
+    "looseness", // (change to the number of lines in a paragraph)
+    "pausing", // (positive if pausing after each line is read from a file)
+    "holdinginserts", // (positive if insertions remain dormant in output box)
+    "tracingonline", // (positive if showing diagnostic info on the terminal)
+    "tracingmacros", // (positive if showing macros as they are expanded)
+    "tracingstats", // (positive if showing statistics about memory usage)
+    "tracingparagraphs", // (positive if showing line-break calculations)
+    "tracingpages", // (positive if showing page-break calculations)
+    "tracingoutput", // (positive if showing boxes that are shipped out)
+    "tracinglostchars", // (positive if showing characters not in the font)
+    "tracingcommands", // (positive if showing commands before they are executed)
+    "tracingrestores", // (positive if showing deassignments when groups end)
+    "language", // (the current set of hyphenation rules)
+    "uchyph", // (positive if hyphenating words beginning with capital letters)
+    "lefthyphenmin", // (smallest fragment at beginning of hyphenated word)
+    "righthyphenmin", // (smallest fragment at end of hyphenated word)
+    "globaldefs", // (nonzero if overriding \global specifications)
+    "defaulthyphenchar", // (\hyphenchar value when a font is loaded)
+    "defaultskewchar", // (\skewchar value when a font is loaded)
+    "escapechar", // (escape character in the output of control sequence tokens)
+    "endlinechar", // (character placed at the right end of an input line)
+    "newlinechar", // (character that starts a new output line)
+    "maxdeadcycles", // (upper bound on \deadcycles)
+    "hangafter", // (hanging indentation changes after this many lines)
+    "fam", // (the current family number)
+    "mag", // (magnification ratio, times 1000)
+    "delimiterfactor", // (ratio for variable delimiters, times 1000)
+    "time", // (current time of day in minutes since midnight)
+    "day", // (current day of the month)
+    "month", // (current month of the year)
+    "year", // (current year of our Lord)
+    "showboxbreadth", // (maximum items per level when boxes are shown)
+    "showboxdepth", // (maximum level when boxes are shown)
+    "errorcontextlines" // (maximum extra context shown when errors occur)
+    )
 
-/** Defines and initializes primitive control sequence
- *
- *  @author Lucas Satabin
- *
- */
-//trait PrimitiveControlSequences {
-//  // it is intended to be mixed in with a TeX environment
-//  this: TeXEnvironment =>
-//
-//  def pdef(stream: Stream[Token]): Stream[Token] = {
-//    stream
-//  }
-//
-//  /** The command `\catcode`\{=1' assigns `{' to category 1 */
-//  def pcatcode(stream: Stream[Token]): Stream[Token] = {
-//    stream.headOption match {
-//      case Some(ControlSequenceToken("catcode")) =>
-//        var result = stream.drop(1)
-//        // catcode then expects a number
-//        number(result) match {
-//          case (str, Some(char)) =>
-//            // some character code was found
-//            result = str
-//            // then expect an "="
-//            result.headOption match {
-//              case Some(CharacterToken('=', _)) =>
-//                number(result.drop(1)) match {
-//                  case (str2, Some(cat)) if cat >= 0 && cat <= 15 =>
-//                    //                    println("character " + char.toChar + " now has category code " + cat)
-//                    category(char.toChar) = Category(cat)
-//                    str2
-//                  case _ =>
-//                    throw new ControlSequenceException("\\catcode expects a number in range 0..15 as third parameter")
-//                }
-//              case _ =>
-//                throw new ControlSequenceException("\\catcode expects a `=` as second parameter")
-//            }
-//          case _ =>
-//            throw new ControlSequenceException("\\catcode expects a number as first parameter")
-//        }
-//      case _ => stream
-//    }
-//  }
-//
-//  protected def intallPrimitives {
-//    css("catcode") = PrimitiveMacro("catcode", pcatcode)
-//  }
-//
-//  // ==== internals ====
-//
-//  // parses a number on the stream and returns the modified stream with the interpreted number
-//  private def number(stream: Stream[Token]) = {
-//    // we need a lookahead of 2 tokens
-//    val lookahead = stream.take(2).toList
-//    lookahead.headOption match {
-//      case Some(CharacterToken('`', Category.OTHER_CHARACTER)) if lookahead.size == 2 =>
-//        // character internal code
-//        lookahead(1) match {
-//          case CharacterToken(c, _) =>
-//            (stream.drop(2), Some(c.toInt))
-//          case ControlSequenceToken(cs) if cs.size == 1 =>
-//            // single symbol control sequence name
-//            (stream.drop(2), Some(cs(0).toInt))
-//          case _ => (stream, None)
-//        }
-//      case Some(CharacterToken(''', Category.OTHER_CHARACTER)) if lookahead.size == 2 =>
-//        // octal number (from '0 to '377)
-//        // take all the octal numbers after the ' to build the number
-//        var str = stream.drop(1).takeWhile({
-//          case CharacterToken(c, _) if c >= 48 && c <= 55 => true
-//          case _ => false
-//        }).map(_.asInstanceOf[CharacterToken].value - 48).toList
-//        val number = str.foldLeft(0) { (res, current) => res * 8 + current }
-//        (stream.drop(1 + str.size), Some(number))
-//      case Some(CharacterToken('"', Category.OTHER_CHARACTER)) if lookahead.size == 2 =>
-//        // hexadecimal number
-//        // take all the hexadecimal numbers after the " to build the number
-//        var str = stream.drop(1).takeWhile({
-//          case CharacterToken(c, _) if (c >= 48 && c <= 57) || (c >= 65 && c <= 70) => true
-//          case _ => false
-//        }).map(_.asInstanceOf[CharacterToken].value).toList
-//        val number = str.foldLeft(0) { (res, current) =>
-//          res * 16 + (if (current <= 57) current - 48 else current - 55)
-//        }
-//        (stream.drop(1 + str.size), Some(number))
-//      case Some(CharacterToken(c, _)) if Character.isDigit(c) =>
-//        // decimal number
-//        // take all the subsequent decimal numbers to build the number
-//        var str = stream.takeWhile({
-//          case CharacterToken(c, _) if (c >= 48 && c <= 57) => true
-//          case _ => false
-//        }).map(_.asInstanceOf[CharacterToken].value - 48).toList
-//        val number = str.foldLeft(0) { (res, current) =>
-//          res * 10 + current
-//        }
-//        (stream.drop(str.size), Some(number))
-//      case _ =>
-//        // not a number
-//        (stream, None)
-//    }
-//  }
-//
-//}
+  val dimenParameter = Set(
+    "hfuzz", // (maximum overrun before overfull hbox messages occur)
+    "vfuzz", // (maximum overrun before overfull vbox messages occur)
+    "overfullrule", // (width of rules appended to overfull boxes)
+    "emergencystretch", // (reduces badnesses on final pass of line-breaking)
+    "hsize", // (line width in horizontal mode)
+    "vsize", // (page height in vertical mode)
+    "maxdepth", // (maximum depth of boxes on main pages)
+    "splitmaxdepth", // (maximum depth of boxes on split pages)
+    "boxmaxdepth", // (maximum depth of boxes on explicit pages)
+    "lineskiplimit", // (threshold where \baselineskip changes to \lineskip)
+    "delimitershortfall", // (maximum space not covered by a delimiter)
+    "nulldelimiterspace", // (width of a null delimiter)
+    "scriptspace", // (extra space after subscript or superscript)
+    "mathsurround", // (kerning before and after math in text)
+    "predisplaysize", // (length of text preceding a display)
+    "displaywidth", // (length of line for displayed equation)
+    "displayindent", // (indentation of line for displayed equation)
+    "parindent", // (width of \indent)
+    "hangindent", // (amount of hanging indentation)
+    "hoffset", // (horizontal offset in \shipout)
+    "voffset" // (vertical offset in \shipout)
+    )
+
+  val glueParameter = Set(
+    "baselineskip", // (desired glue between baselines)
+    "lineskip", // (interline glue if \baselineskip isn’t feasible)
+    "parskip", // (extra glue just above paragraphs)
+    "abovedisplayskip", // (extra glue just above displays)
+    "abovedisplayshortskip", // (ditto, following short lines)
+    "belowdisplayskip", // (extra glue just below displays)
+    "belowdisplayshortskip", // (ditto, following short lines)
+    "leftskip", // (glue at left of justified lines)
+    "rightskip", // (glue at right of justified lines)
+    "topskip", // (glue at top of main pages)
+    "splittopskip", // (glue at top of split pages)
+    "tabskip", // (glue between aligned entries)
+    "spaceskip", // (glue between words, if nonzero)
+    "xspaceskip", // (glue between sentences, if nonzero)
+    "parfillskip" // (additional \rightskip at end of paragraphs)
+    )
+
+  val muglueParameter = Set(
+    "thinmuskip", // (thin space in math formulas)
+    "medmuskip", // (medium space in math formulas)
+    "thickmuskip" // (thick space in math formulas)
+    )
+
+  val tokenParameter = Set(
+    "output", // (the user’s output routine)
+    "everypar", // (tokens to insert when a paragraph begins)
+    "everymath", // (tokens to insert when math in text begins)
+    "everydisplay", // (tokens to insert when display math begins)
+    "everyhbox", // (tokens to insert when an hbox begins)
+    "everyvbox", // (tokens to insert when a vbox begins)
+    "everyjob", // (tokens to insert when the job begins)
+    "everycr", // (tokens to insert after every \cr or nonredundant \crcr)
+    "errhelp" // (tokens that supplement an \errmessage)
+    )
+
+}

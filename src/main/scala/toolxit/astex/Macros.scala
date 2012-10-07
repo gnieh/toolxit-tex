@@ -15,13 +15,24 @@
 */
 package toolxit.astex
 
-/** A control sequence definition represents the type and value of any known
- *  control sequence.
- */
-sealed trait ControlSequenceDef {
-  val cs: String
-  val primitive: Boolean
-}
+// ================ primitive control sequences ================
+
+/** A primitive macro is already installed into the TeX program at the beginning. */
+final case class PrimitiveMacro(run: Stream[Token] => Stream[Token])(
+  long: Boolean = false,
+  outer: Boolean = false)
+
+///** A token list register contains a list of token used in replacement of this name */
+//final case class TokenListRegister(cs: String,
+//                                   replacement: List[Token]) extends ControlSequenceDef {
+//  val primitive = true
+//}
+//
+//final case class PrimitiveCounter(cs: String, value: Int) extends ControlSequenceDef {
+//  val primitive = true
+//}
+
+// ================ user defined control sequences ================
 
 /** A user defined macro has a name (control sequence) and a list of
  *  parameters. Whenever this sequence occurs, it is replace by the
@@ -30,31 +41,42 @@ sealed trait ControlSequenceDef {
  *  @author Lucas Satabin
  *
  */
-final case class UserMacro(cs: String,
-                           parameters: List[Parameter],
+final case class UserMacro(parameters: List[Parameter],
                            replacement: List[Token])(
                              long: Boolean = false,
                              outer: Boolean = false)
-    extends ControlSequenceDef {
-  val primitive = false
-}
 
-/** A primitive macro is already installed into the TeX program at the beginning. */
-final case class PrimitiveMacro(cs: String,
-                                run: Stream[Token] => Stream[Token])(
-                                  long: Boolean = false,
-                                  outer: Boolean = false)
-    extends ControlSequenceDef {
-  val primitive = true
-}
-
-/** A token list register contains a list of token used in replacement of this name */
-final case class TokenListRegister(cs: String,
-                                   replacement: List[Token]) extends ControlSequenceDef {
-  val primitive = true
-}
-
-/** A user defined counter */
-final case class UserCounter(cs: String, value: Int) extends ControlSequenceDef {
-  val primitive = false
-}
+///** A user defined counter (with \countdef) */
+//final case class UserCounter(cs: String, value: Int) extends ControlSequenceDef {
+//  val primitive = false
+//}
+//
+///** A user defined dimension (with \dimendef) */
+//final case class UserDimension(cs: String, value: Dimension) extends ControlSequenceDef {
+//  val primitive = false
+//}
+//
+///** A user defined character (with \chardef) */
+//final case class UserCharacter(cs: String, value: Char) extends ControlSequenceDef {
+//  val primitive = false
+//}
+//
+///** A user defined math character (with \mathchardef) */
+//final case class UserMathCharacter(cs: String, value: Char) extends ControlSequenceDef {
+//  val primitive = false
+//}
+//
+///** A user defined font (with \fontdef) */
+//final case class UserFont(cs: String, externalName: String) extends ControlSequenceDef {
+//  val primitive = false
+//}
+//
+///** A user defined font (with \skipdef) */
+//final case class UserSkip(cs: String, value: Dimension) extends ControlSequenceDef {
+//  val primitive = false
+//}
+//
+///** A user defined font (with \muskipdef) */
+//final case class UserMuskip(cs: String, value: Dimension) extends ControlSequenceDef {
+//  val primitive = false
+//}

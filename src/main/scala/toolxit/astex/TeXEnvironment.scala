@@ -81,7 +81,7 @@ class TeXEnvironment {
        *  with the new control sequence definition. This control sequence definition
        *  is global and so will be available in any context.
        */
-      def update(name: String, cs: ControlSequenceDef) =
+      def update(name: String, cs: ControlSequence) =
         root.addControlSequence(name, cs)
     }
 
@@ -95,14 +95,42 @@ class TeXEnvironment {
      *  with the new control sequence definition. This control sequence definition
      *  is scoped to  the current group only, and will be discarded when leaving the group.
      */
-    def update(name: String, cs: ControlSequenceDef) =
+    def update(name: String, cs: ControlSequence) =
       environment.addControlSequence(name, cs)
+  }
+
+  /** Exposes count register management functions. */
+  object count {
+
+    /** Finds and returns the count register value identified by its register number
+     *  in the current environment.
+     *  The default value of a count register is `0`.
+     */
+    def apply(number: Byte) =
+      environment.findCount(number)
+
+    /** Sets the value of the count register in the current environment.
+     *  This value will be reseted to the previous value when leaving the current group.
+     */
+    def update(number: Byte, value: Int) =
+      environment.setCount(number, value)
   }
 
   // ==== internals ====
 
   private[this] val root = new Environment
   private[this] var environment = root
+
+  // the available registers
+  private[this] val counters: Array[Int] = Array.fill(256)(0)
+  // all dimension are stored as an integer multiple of one sp
+  // the biggest dimension accepted by TeX is 2^30sp, so an integer
+  // is sufficient to store it.
+  private[this] val dimensions = Map.empty[Byte, Int]
+  // glues and muglues are the triple (dimension, stretch, shrink)
+  private[this] val glues = Map.empty[Byte, (Int, Int, Int)]
+  private[this] val muglues = Map.empty[Byte, (Int, Int, Int)]
+  // TODO other register types
 
   // set specific categories statically known at the beginning
   // when a fresh root environment is created
@@ -115,8 +143,20 @@ class TeXEnvironment {
   private class Environment(val parent: Option[Environment] = None) {
     // the map from character to category code
     private val categories = Map.empty[Char, Category.Value]
+
     // the map from cs name to its internal representation
-    private val css = Map.empty[String, ControlSequenceDef]
+    private val css = Map.empty[String, ControlSequence]
+
+    // local values of the different registers
+    private[this] val counters = Map.empty[Byte, Int]
+    // all dimension are stored as an integer multiple of one sp
+    // the biggest dimension accepted by TeX is 2^30sp, so an integer
+    // is sufficient to store it.
+    private[this] val dimensions = Map.empty[Byte, Int]
+    // glues and muglues are the triple (dimension, stretch, shrink)
+    private[this] val glues = Map.empty[Byte, (Int, Int, Int)]
+    private[this] val muglues = Map.empty[Byte, (Int, Int, Int)]
+    // TODO other register types
 
     def category(c: Char): Category.Value = {
       categories.get(c) match {
@@ -138,11 +178,11 @@ class TeXEnvironment {
       categories(c) = cat
     }
 
-    def addControlSequence(name: String, cs: ControlSequenceDef) = {
+    def addControlSequence(name: String, cs: ControlSequence) = {
       css(name) = cs
     }
 
-    def findControlSequence(name: String): Option[ControlSequenceDef] = css.get(name) match {
+    def findControlSequence(name: String): Option[ControlSequence] = css.get(name) match {
       case Some(cs) => Some(cs)
       case None =>
         parent match {
@@ -150,6 +190,18 @@ class TeXEnvironment {
           case None => None
         }
     }
+
+    def findCount(number: Byte): Option[Int] = counters.get(number) match {
+      case Some(n) => Some(n)
+      case None =>
+        parent match {
+          case Some(p) => p.findCount(number)
+          case None => None
+        }
+    }
+
+    def setCount(number: Byte, value: Int) =
+      counters(number) = value
 
   }
 

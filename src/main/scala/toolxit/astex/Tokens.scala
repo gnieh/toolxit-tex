@@ -48,3 +48,8 @@ case class ControlSequenceToken(name: String) extends Token
  *  of a control sequence.
  */
 case class ParameterToken(number: Int) extends Token
+
+/** A token that was not expanded (following `\noexpand` control sequence).
+ *  It shall be interpreted as `\relax`.
+ */
+case class NotExpandedToken(inner: Token) extends Token

@@ -97,7 +97,7 @@ class TeXParseRunner(parser: TeXParser, input: InputBuffer) {
     private def expand(token: Token): MonadicParsingResult[Token] = token match {
       case ControlSequenceToken(name) if shallExpand(name) =>
         css(name) match {
-          case Some(UserMacro(_, parameters, replacement)) =>
+          case Some(TeXMacro(_, parameters, replacement)) =>
             // parse arguments
             parseWith(parser.argumentParser(parameters)).map { arguments =>
               // replace with the replacement text
@@ -109,9 +109,18 @@ class TeXParseRunner(parser: TeXParser, input: InputBuffer) {
               expanded.pushAll(replaced.reverse)
               expanded.pop
             }
-          case Some(UserCounter(_, value)) =>
+          case Some(TeXInteger(_, value)) =>
             OkResult(token)
-          case Some(PrimitiveMacro(_, parameters)) =>
+          case Some(TeXBuiltin("noexpand")) =>
+            // inhibit macro expansion
+            noexpand = true
+            // get the next token
+            nextToken.map { token =>
+              // re-establish macro expansion
+              noexpand = false
+              NotExpandedToken(token)
+            }
+          case Some(TeXBuiltin(name)) =>
             OkResult(token)
           case _ =>
             OkResult(token)
@@ -128,9 +137,9 @@ class TeXParseRunner(parser: TeXParser, input: InputBuffer) {
       } else {
         // retrieve the control sequence
         css(name) match {
-          case Some(_: UserMacro) =>
+          case Some(TeXMacro(_, _, _)) =>
             true
-          case Some(cs) if Primitives.expandablePrimitives.contains(cs.cs) =>
+          case Some(cs) if Primitives.expandablePrimitives.contains(cs.name) =>
             true
           case _ => false
         }

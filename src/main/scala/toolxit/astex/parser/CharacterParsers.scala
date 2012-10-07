@@ -23,7 +23,7 @@ import org.parboiled.scala._
  *  @author Lucas Satabin
  *
  */
-abstract class CharacterParsers extends TeXParser {
+trait CharacterParsers extends TeXParser {
 
   import environment._
 
@@ -148,6 +148,11 @@ abstract class CharacterParsers extends TeXParser {
         CharacterToken(' ', Category.SPACE)
       }
     }
+  }
+
+  /* parses a character token which has same value and same category code as the given one */
+  protected def sameAs(token: CharacterToken): Rule0 = rule {
+    character ~~? (c => c == token)
   }
 
 }

@@ -17,6 +17,8 @@ package toolxit.astex
 
 import java.io.InputStream
 
+import parser._
+
 /** The TeX interpreter (or ''stomach'') consumes expanded tokens
  *  available  from an input stream and interprets them.
  *
@@ -31,8 +33,7 @@ class TeXInterpreter(is: InputStream) {
   val environment = new TeXEnvironment
 
   // build the token stream
-  private val parser = new TeXTokenStreamBuilder(is, environment, (_, _, _, _) => ())
-  private var stream = parser.toStream
+  private val parser = new TeXParserImpl(environment)
 
   // the mode the TeX interpreter is currently in
   private var mode = Mode.VerticalMode
@@ -44,41 +45,7 @@ class TeXInterpreter(is: InputStream) {
   }
 
   def interpret = {
-    stream.headOption match {
-      case Some(cs: ControlSequenceToken) =>
-        // we encountered a control sequence
-        // first fetch it from environment
-        css(cs.name) match {
-          case Some(PrimitiveMacro(_, code)) =>
-            // execute the code of this primitive macro
-            stream = code(stream)
-          case _ =>
-            // Should *NEVER* happen as the stream was correctly expanded
-            throw new ControlSequenceException("WTF is this control sequence: " + cs.name + "???")
-        }
-        true
-      case Some(CharacterToken(_, Category.BEGINNING_OF_GROUP)) =>
-        consume(1)
-        println("entering group")
-        enterGroup
-        true
-      case Some(CharacterToken(_, Category.END_OF_GROUP)) =>
-        consume(1)
-        println("leaving group")
-        leaveGroup
-        true
-      case Some(token) =>
-        consume(1)
-        println(token)
-        true
-      case None =>
-        // end of stream
-        false
-    }
-  }
-
-  private def consume(n: Int) {
-    stream = stream.drop(n)
+    true
   }
 
 }

@@ -13,23 +13,23 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit
+package toolxit.astex
+
+import dimen._
 
 /** @author Lucas Satabin
  *
  */
-package object astex {
+case class Glue(value: Dimension,
+                stretch: Dimension = ZeroDimen,
+                shrink: Dimension = ZeroDimen)
 
-  import dimen._
+/** Special glue, which is zero */
+object ZeroGlue extends Glue(ZeroDimen)
 
-  type Parameter = Either[ParameterToken, List[CharacterToken]]
+case class Muglue(value: Dimension,
+                  stretch: Dimension = ZeroDimen,
+                  shrink: Dimension = ZeroDimen)
 
-  implicit def toDimenMult(i: Int) = new {
-    def *(dim: Dimension) = dim.copy(sps = (dim.sps * i))
-  }
-
-  implicit def toGlueMult(i: Int) = new {
-    def *(glue: Glue) = Glue(i * glue.value, i * glue.stretch, i * glue.shrink)
-  }
-
-}
+/** Special muglue, which is zero */
+object ZeroMuglue extends Muglue(ZeroDimen)
