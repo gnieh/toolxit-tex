@@ -20,16 +20,16 @@ import dimen._
 /** @author Lucas Satabin
  *
  */
-case class Glue(value: Dimension,
-                stretch: Dimension = ZeroDimen,
-                shrink: Dimension = ZeroDimen)
+case class Glue(value: Int,
+                stretch: Int = 0,
+                shrink: Int = 0)
 
 /** Special glue, which is zero */
-object ZeroGlue extends Glue(ZeroDimen)
+object ZeroGlue extends Glue(0)
 
-case class Muglue(value: Dimension,
-                  stretch: Dimension = ZeroDimen,
-                  shrink: Dimension = ZeroDimen)
+case class Muglue(value: Int,
+                  stretch: Int = 0,
+                  shrink: Int = 0)
 
 /** Special muglue, which is zero */
-object ZeroMuglue extends Muglue(ZeroDimen)
+object ZeroMuglue extends Muglue(0)

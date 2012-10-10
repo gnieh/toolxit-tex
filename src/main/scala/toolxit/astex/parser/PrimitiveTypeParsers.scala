@@ -50,16 +50,16 @@ trait PrimitiveTypeParsers extends TeXParser {
     spaces ~ optSigns ~ spaces ~ unsignedNumber ~~> ((sign, value) => sign * value)
   }
 
-  def number15: Rule1[Int] = rule {
-    number ~~~% (value => value >= 0 && value < 32768)
+  def number15: Rule1[Short] = rule {
+    number ~~~? (value => value >= 0 && value < 32768) ~~> (_.toShort)
   }
 
-  def number8: Rule1[Int] = rule {
-    number ~~~% (value => value >= 0 && value < 256)
+  def number8: Rule1[Byte] = rule {
+    number ~~~? (value => value >= 0 && value < 256) ~~> (_.toByte)
   }
 
-  def number4: Rule1[Int] = rule {
-    number ~~~% (value => value >= 0 && value < 16)
+  def number4: Rule1[Byte] = rule {
+    number ~~~? (value => value >= 0 && value < 16) ~~> (_.toByte)
   }
 
   def unsignedNumber: Rule1[Int] = rule {
@@ -87,11 +87,11 @@ trait PrimitiveTypeParsers extends TeXParser {
   }
 
   def octalDigit = rule {
-    ("0" - "7") ~> (_.charAt(0)) ~~~% (c => category(c) == Category.OTHER_CHARACTER)
+    ("0" - "7") ~> (_.charAt(0)) ~~~? (c => category(c) == Category.OTHER_CHARACTER)
   }
 
   def digit = rule {
-    ("0" - "9") ~> (_.charAt(0)) ~~~% (c => category(c) == Category.OTHER_CHARACTER)
+    ("0" - "9") ~> (_.charAt(0)) ~~~? (c => category(c) == Category.OTHER_CHARACTER)
   }
 
   def hexadecimalDigit = rule {
@@ -208,13 +208,13 @@ trait PrimitiveTypeParsers extends TeXParser {
       spaces ~ push(ZeroDimen)
   }
 
-  def filDimen: Rule1[Dimension] = rule {
+  def filDimen: Rule1[FilDimension] = rule {
     optSigns ~ factor ~ filUnit ~ spaces ~~> { (sign, fact, fil) =>
-      Dimension(sign * fact, fil)
+      FilDimension(sign * fact, fil)
     }
   }
 
-  def filUnit: Rule1[TeXUnit] = rule {
+  def filUnit: Rule1[FilUnit] = rule {
     keyword("fil") ~ push(Fil) |
       keyword("fill") ~ push(Fill) |
       keyword("filll") ~ push(Filll)
@@ -227,29 +227,29 @@ trait PrimitiveTypeParsers extends TeXParser {
 
   def muStretch = rule {
     keyword("plus") ~ mudimen |
-      keyword("plus") ~ filDimen |
-      spaces
+      //      keyword("plus") ~ filDimen |
+      spaces ~ push(0)
   }
 
   def muShrink = rule {
     keyword("minus") ~ mudimen |
-      keyword("minus") ~ filDimen |
-      spaces
+      //      keyword("minus") ~ filDimen |
+      spaces ~ push(0)
   }
 
   def internalInteger: Rule1[Int] = rule {
-    integerParameter ~~> { cs =>
-      css(cs.name) match {
-        case Some(PrimitiveCounter(_, value)) =>
-          value
-        case _ => // shall never happen
-          throw new TeXException("control sequence " + cs.name + "should refer to a primitive integer register")
-      }
-    } |
-      specialInteger |
+    //    integerParameter ~~> { cs =>
+    //      css(cs.name) match {
+    //        case Some(PrimitiveCounter(_, value)) =>
+    //          value
+    //        case _ => // shall never happen
+    //          throw new TeXException("control sequence " + cs.name + "should refer to a primitive integer register")
+    //      }
+    //    } |
+    specialInteger |
       cs("lastpenalty") |
       countdefToken |
-      cs("count") ~ number8 ~~% { _ => } |
+      cs("count") ~ number8 ~~> { (_, number) => count(number) } |
       codename ~ number8 ~~% { _ => } |
       chardefToken |
       mathchardefToken |
@@ -309,7 +309,7 @@ trait PrimitiveTypeParsers extends TeXParser {
   def internalGlue: Rule1[Glue] = rule {
     controlsequence ~~> { cs =>
       css(cs.name) match {
-        case Some(TeXGlue(_, glue)) => glue
+        case Some(TeXGlue(_, glue)) => skip(glue)
         case Some(cs) => throw new TeXException(cs.name + " should be of type Glue but has type " + cs.tpe)
         case None => throw new TeXException(cs.name + " does is unknown in the current environment")
       }
@@ -319,7 +319,7 @@ trait PrimitiveTypeParsers extends TeXParser {
   def internalMuglue: Rule1[Muglue] = rule {
     controlsequence ~~> { cs =>
       css(cs.name) match {
-        case Some(TeXMuglue(_, muglue)) => muglue
+        case Some(TeXMuglue(_, muglue)) => muskip(muglue)
         case Some(TeXGlue("lastskip", glue)) =>
         case Some(cs) => throw new TeXException(cs.name + " should be of type Glue but has type " + cs.tpe)
         case None => throw new TeXException(cs.name + " does is unknown in the current environment")

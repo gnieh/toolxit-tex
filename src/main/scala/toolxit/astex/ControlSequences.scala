@@ -50,37 +50,33 @@ sealed trait ControlSequence {
   val tpe: TeXType.Value
 }
 
-final case class TeXAlias(name: String,
-                          tpe: TeXType.Value,
-                          realName: String) extends ControlSequence
-
 final case class TeXInteger(name: String,
-                            value: Int) extends ControlSequence {
+                            number: Byte) extends ControlSequence {
   val tpe = TeXType.TeXInteger
 }
 
 final case class TeXChar(name: String,
-                         value: Char) extends ControlSequence {
+                         number: Byte) extends ControlSequence {
   val tpe = TeXType.TeXChar
 }
 
 final case class TeXMathChar(name: String,
-                             value: Char) extends ControlSequence {
+                             number: Byte) extends ControlSequence {
   val tpe = TeXType.TeXMathChar
 }
 
 final case class TeXDimension(name: String,
-                              value: Dimension) extends ControlSequence {
+                              number: Byte) extends ControlSequence {
   val tpe = TeXType.TeXDimension
 }
 
 final case class TeXGlue(name: String,
-                         value: Glue) extends ControlSequence {
+                         number: Byte) extends ControlSequence {
   val tpe = TeXType.TeXGlue
 }
 
 final case class TeXMuglue(name: String,
-                           value: Muglue) extends ControlSequence {
+                           number: Byte) extends ControlSequence {
   val tpe = TeXType.TeXMuglue
 }
 
@@ -95,11 +91,11 @@ final case class TeXBuiltin(name: String) extends ControlSequence {
 }
 
 final case class TeXTokenList(name: String,
-                              value: List[Token]) extends ControlSequence {
+                              number: Byte) extends ControlSequence {
   val tpe = TeXType.TeXTokenList
 }
 
 final case class TeXFont(name: String,
-                         external: String) extends ControlSequence {
+                         number: Byte) extends ControlSequence {
   val tpe = TeXType.TeXFont
 }

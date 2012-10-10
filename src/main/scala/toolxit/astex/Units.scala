@@ -24,18 +24,18 @@ sealed trait InternalUnit extends TeXUnit
 case object Em extends InternalUnit
 case object Ex extends InternalUnit
 
-sealed trait PhysicalUnit extends TeXUnit
-case object Point extends PhysicalUnit
-case object Pica extends PhysicalUnit
-case object Inch extends PhysicalUnit
-case object BigPoint extends PhysicalUnit
-case object Centimeter extends PhysicalUnit
-case object Millimeter extends PhysicalUnit
-case object DidotPoint extends PhysicalUnit
-case object Cicero extends PhysicalUnit
-case object ScaledPoint extends PhysicalUnit
+//sealed trait PhysicalUnit extends TeXUnit
+//case object Point extends PhysicalUnit
+//case object Pica extends PhysicalUnit
+//case object Inch extends PhysicalUnit
+//case object BigPoint extends PhysicalUnit
+//case object Centimeter extends PhysicalUnit
+//case object Millimeter extends PhysicalUnit
+//case object DidotPoint extends PhysicalUnit
+//case object Cicero extends PhysicalUnit
+//case object ScaledPoint extends PhysicalUnit
 
-case class TrueUnit(inner: PhysicalUnit) extends PhysicalUnit
+//case class TrueUnit(inner: PhysicalUnit) extends PhysicalUnit
 
 case object MathUnits extends TeXUnit
 

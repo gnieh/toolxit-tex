@@ -15,6 +15,8 @@
 */
 package toolxit.astex
 
+import dimen._
+
 import scala.collection.mutable.Map
 
 /** The TeX environment tracks the following elements:
@@ -116,20 +118,71 @@ class TeXEnvironment {
       environment.setCount(number, value)
   }
 
+  /** Exposes dimension register management functions. */
+  object dimen {
+
+    /** Finds and returns the dimension register value identified by its register number
+     *  in the current environment.
+     *  The default value of a dimension register is `0 pt`.
+     */
+    def apply(number: Byte) =
+      environment.findDimen(number)
+
+    /** Sets the value of the dimension register in the current environment.
+     *  This value will be reseted to the previous value when leaving the current group.
+     */
+    def update(number: Byte, value: Dimension) =
+      environment.setDimen(number, value)
+  }
+
+  /** Exposes glue register management functions. */
+  object skip {
+
+    /** Finds and returns the glue register value identified by its register number
+     *  in the current environment.
+     *  The default value of a glue register is `0 pt +0 pt -0 pt`.
+     */
+    def apply(number: Byte) =
+      environment.findGlue(number)
+
+    /** Sets the value of the count register in the current environment.
+     *  This value will be reseted to the previous value when leaving the current group.
+     */
+    def update(number: Byte, value: Glue) =
+      environment.setGlue(number, value)
+  }
+
+  /** Exposes muglue register management functions. */
+  object muskip {
+
+    /** Finds and returns the muglue register value identified by its register number
+     *  in the current environment.
+     *  The default value of a muglue register is `0 pt +0 pt -0 pt`.
+     */
+    def apply(number: Byte) =
+      environment.findMuglue(number)
+
+    /** Sets the value of the count register in the current environment.
+     *  This value will be reseted to the previous value when leaving the current group.
+     */
+    def update(number: Byte, value: Muglue) =
+      environment.setMuglue(number, value)
+  }
+
   // ==== internals ====
 
   private[this] val root = new Environment
   private[this] var environment = root
 
   // the available registers
-  private[this] val counters: Array[Int] = Array.fill(256)(0)
+  private[this] val counters = Array.fill(256)(0)
   // all dimension are stored as an integer multiple of one sp
   // the biggest dimension accepted by TeX is 2^30sp, so an integer
   // is sufficient to store it.
-  private[this] val dimensions = Map.empty[Byte, Int]
+  private[this] val dimensions = Array.fill(256)(0)
   // glues and muglues are the triple (dimension, stretch, shrink)
-  private[this] val glues = Map.empty[Byte, (Int, Int, Int)]
-  private[this] val muglues = Map.empty[Byte, (Int, Int, Int)]
+  private[this] val glues = Array.fill(256)((0, 0, 0))
+  private[this] val muglues = Array.fill(256)((0, 0, 0))
   // TODO other register types
 
   // set specific categories statically known at the beginning
@@ -191,17 +244,57 @@ class TeXEnvironment {
         }
     }
 
-    def findCount(number: Byte): Option[Int] = counters.get(number) match {
-      case Some(n) => Some(n)
+    def findCount(number: Byte): Int = counters.get(number) match {
+      case Some(n) => n
       case None =>
         parent match {
           case Some(p) => p.findCount(number)
-          case None => None
+          case None => self.counters(number >>> 24)
         }
     }
 
     def setCount(number: Byte, value: Int) =
       counters(number) = value
+
+    def findDimen(number: Byte): Dimension = dimensions.get(number) match {
+      case Some(d) => Dimension(d)
+      case None =>
+        parent match {
+          case Some(p) => p.findDimen(number)
+          case None => Dimension(self.dimensions(number >>> 24))
+        }
+    }
+
+    def setDimen(number: Byte, value: Dimension) =
+      dimensions(number) = value.sps
+
+    def findGlue(number: Byte): Glue = glues.get(number) match {
+      case Some(g) => Glue(g._1, g._2, g._3)
+      case None =>
+        parent match {
+          case Some(p) => p.findGlue(number)
+          case None =>
+            val g = self.glues(number >>> 24)
+            Glue(g._1, g._2, g._3)
+        }
+    }
+
+    def setGlue(number: Byte, value: Glue) =
+      glues(number) = (value.value, value.stretch, value.shrink)
+
+    def findMuglue(number: Byte): Muglue = muglues.get(number) match {
+      case Some(g) => Muglue(g._1, g._2, g._3)
+      case None =>
+        parent match {
+          case Some(p) => p.findMuglue(number)
+          case None =>
+            val g = self.muglues(number >>> 24)
+            Muglue(g._1, g._2, g._3)
+        }
+    }
+
+    def setMuglue(number: Byte, value: Muglue) =
+      muglues(number) = (value.value, value.stretch, value.shrink)
 
   }
 

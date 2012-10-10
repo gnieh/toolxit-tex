@@ -55,7 +55,11 @@ object Dimension {
 
   def ofCicero(cc: Float): Dimension = ofDidotPoint(cc * 12f)
 
+  def \(name: String) = 0
+
 }
 
 /** Special dimension, which is zero */
 object ZeroDimen extends Dimension(0)
+
+case class FilDimension(factor: Float, fil: FilUnit)
