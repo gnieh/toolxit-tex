@@ -15,21 +15,11 @@
 */
 package toolxit
 
-/** @author Lucas Satabin
+/** A mode in which TeX is.
+ *
+ *  @author Lucas Satabin
  *
  */
-package object astex {
-
-  import dimen._
-
-  type Parameter = Either[ParameterToken, List[CharacterToken]]
-
-  implicit def toDimenMult(i: Int) = new {
-    def *(dim: Dimension) = dim.copy(sps = (dim.sps * i))
-  }
-
-  implicit def toGlueMult(i: Int) = new {
-    def *(glue: Glue) = Glue(i * glue.value, i * glue.stretch, i * glue.shrink)
-  }
-
+object Mode extends Enumeration {
+  val VerticalMode, InternalVerticalMode, HorizontalMode, RestrictedHorizontalMode, MathMode, DisplayMathMode = Value
 }

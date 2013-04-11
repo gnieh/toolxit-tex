@@ -13,14 +13,24 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+
+import scala.language.implicitConversions
 
 /** @author Lucas Satabin
  *
  */
-class TeXException(msg: String, inner: Throwable) extends Exception(msg, inner) {
-  def this() = this(null, null)
-  def this(msg: String) = this(msg, null)
-}
+package object toolxit {
 
-class ControlSequenceException(msg: String) extends TeXException(msg)
+  import dimen._
+
+  type Parameter = Either[ParameterToken, List[CharacterToken]]
+
+  implicit def toDimenMult(i: Int) = new {
+    def *(dim: Dimension) = dim.copy(sps = (dim.sps * i))
+  }
+
+  implicit def toGlueMult(i: Int) = new {
+    def *(glue: Glue) = Glue(i * glue.value, i * glue.stretch, i * glue.shrink)
+  }
+
+}

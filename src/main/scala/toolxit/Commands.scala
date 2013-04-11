@@ -13,13 +13,14 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+package toolxit
 
-/** A mode in which TeX is.
+/** A TeX command. Each token in TeX is a command.
+ *  For example the letter 'A'is a command to typeset an 'A'.
  *
  *  @author Lucas Satabin
  *
  */
-object Mode extends Enumeration {
-  val VerticalMode, InternalVerticalMode, HorizontalMode, RestrictedHorizontalMode, MathMode, DisplayMathMode = Value
-}
+sealed trait Command
+
+case class Typeset(what: String) extends Command

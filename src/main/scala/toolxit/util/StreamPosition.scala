@@ -31,6 +31,9 @@ case class StreamPosition[T](source: Stream[T], offset: Int) extends Position {
   def lineContents: String =
     source.headOption.map(_.toString).getOrElse("<EOI>")
 
+  def next: StreamPosition[T] =
+    StreamPosition(source.tail, offset + 1)
+
   /** Returns a string representation of the `Position`, of the form `line.column`. */
   override def toString = "@" + offset
 

@@ -13,14 +13,22 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+package toolxit
+package parser
 
-/** A TeX command. Each token in TeX is a command.
- *  For example the letter 'A'is a command to typeset an 'A'.
+import scala.util.parsing.input.Position
+
+/** A complete TeX parser that processes some input and returns the stream of primitive
+ *  commands to execute. It abstracts over the input channel type, so that it could be
+ *  an in-memory string, a file, a network channel, user interactive inputs, ...
  *
  *  @author Lucas Satabin
- *
  */
-sealed trait Command
+trait TeXParser {
 
-case class Typeset(what: String) extends Command
+  /** The (possibly lazy, possibly infinite) primitive command stream  parsed
+   *  by this parser. If an error is encountered, the approprirate error command
+   *  is returned so that error recovery can be performed by caller */
+  def commands: Stream[Command]
+
+}

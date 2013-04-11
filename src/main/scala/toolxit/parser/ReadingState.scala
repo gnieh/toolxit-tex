@@ -13,23 +13,13 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+package toolxit
+package parser
 
-import dimen._
-
-/** @author Lucas Satabin
- *
- */
-case class Glue(value: Int,
-                stretch: Int = 0,
-                shrink: Int = 0)
-
-/** Special glue, which is zero */
-object ZeroGlue extends Glue(0)
-
-case class Muglue(value: Int,
-                  stretch: Int = 0,
-                  shrink: Int = 0)
-
-/** Special muglue, which is zero */
-object ZeroMuglue extends Muglue(0)
+object ReadingState extends Enumeration {
+  // reading state for input reading
+  // N = new line
+  // M = middle of a line
+  // S = skipping blanks
+  val N, M, S = Value
+}

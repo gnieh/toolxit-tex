@@ -21,10 +21,16 @@ import scala.util.parsing.input.Position
  *
  *  @author Lucas Satabin
  */
-trait Parsec[Token, Pos <: Position] {
+trait Parsers[Token, Pos <: Position] {
+
+  /* The type of the parser state must contain (at least) the remaining input and the current position */
+  type State <: Input
 
   /** Computes the next position from the current position and read token */
   protected def nextPos(current: Pos, read: Token): Pos
+
+  /** Creates a state from the `remaining` input and current position `pos` */
+  protected def makeState(old: State, remaining: Stream[Token], pos: Pos): State
 
   /** The result returned by a paser.
    *
@@ -88,7 +94,7 @@ trait Parsec[Token, Pos <: Position] {
    *
    *  @author Lucas Satabin
    */
-  case class Success[T](value: T, rest: Input, message: Message) extends Reply[T] {
+  case class Success[T](value: T, rest: State, message: Message) extends Reply[T] {
 
     def filter(p: T => Boolean): Reply[T] =
       if(p(value))
@@ -126,20 +132,23 @@ trait Parsec[Token, Pos <: Position] {
    *
    *  @author Lucas Satabin
    */
-  case class Input(stream: Stream[Token], pos: Pos)
+  trait Input {
+    val stream: Stream[Token]
+    val pos: Pos
+  }
 
   /** A monadic parser (function from input to result)
    *
    *  @author Lucas Satabin
    */
-  abstract class Parser[+T] extends (Input => Result[T]) with Monadic[T, Parser] {
+  abstract class Parser[+T] extends (State => Result[T]) with Monadic[T, Parser] {
     self =>
 
     /** Binds the result of this parser to a function producing another parser.
      *  This is the basic operation used to build sequences. */
     def >>=[U](fun: T => Parser[U]): Parser[U] =
       new Parser[U] {
-        def apply(input: Input): Result[U] = self(input) match {
+        def apply(input: State): Result[U] = self(input) match {
           case Empty(reply1) => reply1 match {
             case Success(value, rest, msg) =>
               // this parser succeeded without consuming any token
@@ -161,7 +170,7 @@ trait Parsec[Token, Pos <: Position] {
     /** Applies transformation on the value resulting from this parser. */
     def fmap[U](fun: T => U): Parser[U] =
       new Parser[U] {
-        def apply(input: Input): Result[U] = self(input) match {
+        def apply(input: State): Result[U] = self(input) match {
           case Consumed(Success(value, rest, msg)) =>
             Consumed(Success(fun(value), rest, msg))
           case Consumed(Error(msg)) =>
@@ -189,15 +198,15 @@ trait Parsec[Token, Pos <: Position] {
      *  returned */
     def filter(p: T => Boolean): Parser[T] =
       new Parser[T] {
-        def apply(input: Input): Result[T] = self(input) match {
+        def apply(input: State): Result[T] = self(input) match {
           case res @ Empty(Success(value, _, _)) if p(value) =>
             res
           case res @ Consumed(Success(value, _, _)) if p(value) =>
             res
           case Empty(Success(_, _, _)) | Consumed(Success(_, _, _)) =>
             Empty(Error(Message(input.pos, input.stream.headOption, Nil)))
-          case other =>
-            other
+          case error =>
+            error
         }
       }
 
@@ -206,7 +215,7 @@ trait Parsec[Token, Pos <: Position] {
      *  any input, and `that` succeeds by consuming some input, then the second result is taken */
     def <|>[U >: T](that: Parser[U]): Parser[U] =
       new Parser[U] {
-        def apply(input: Input): Result[U] = self(input) match {
+        def apply(input: State): Result[U] = self(input) match {
           case Empty(Error(msg1)) =>
             that(input) match {
               case Empty(Error(msg2)) =>
@@ -234,11 +243,25 @@ trait Parsec[Token, Pos <: Position] {
      *  to `msg` when `this` fails without consuming any input. */
     def <#>(msg: String): Parser[T] =
       new Parser[T] {
-        def apply(input: Input) = self(input) match {
+        def apply(input: State): Result[T] = self(input) match {
           case Empty(Error(Message(pos, unexp, _))) =>
             Empty(Error(Message(pos, unexp, List(msg))))
           case res =>
             res
+        }
+      }
+
+    /** Parser that post processes the state value once `this` parser succeeded.
+     *  It does nothing if `this` parser failed */
+    def post(f: (T,State) => State): Parser[T] =
+      new Parser[T] {
+        def apply(input: State): Result[T] = self(input) match {
+          case Empty(Success(value, input1, msg)) =>
+            Empty(Success(value, f(value, input1), msg))
+          case Consumed(Success(value, input1, msg)) =>
+            Consumed(Success(value, f(value, input1), msg))
+          case error =>
+            error
         }
       }
 
@@ -247,9 +270,9 @@ trait Parsec[Token, Pos <: Position] {
   /** Parser that always succeeds as long as there is at least one token left in the input */
   lazy val any: Parser[Token] =
     new Parser[Token] {
-      def apply(input: Input): Result[Token] = input.stream match {
+      def apply(input: State): Result[Token] = input.stream match {
         case token #:: rest =>
-          Consumed(Success(token, Input(rest, nextPos(input.pos, token)), Message(input.pos, None, Nil)))
+          Consumed(Success(token, makeState(input, rest, nextPos(input.pos, token)), Message(input.pos, None, Nil)))
         case Stream.Empty =>
           Empty(Error(Message(input.pos, None, List("any token"))))
       }
@@ -258,7 +281,7 @@ trait Parsec[Token, Pos <: Position] {
   /** Parser that always succeeds without consuming any value */
   def success[T](value: T): Parser[T] =
     new Parser[T] {
-      def apply(input: Input): Result[T] =
+      def apply(input: State): Result[T] =
         // ok without consuming anything
         Empty(Success(value, input, Message(input.pos, None, Nil)))
     }
@@ -266,7 +289,7 @@ trait Parsec[Token, Pos <: Position] {
   /** Parser that always fails with the given message and wihout consuming any input */
   def fail(msg: String): Parser[Nothing] =
     new Parser[Nothing] {
-      def apply(input: Input): Result[Nothing] =
+      def apply(input: State): Result[Nothing] =
         Empty(Error(Message(input.pos, input.stream.headOption, List(msg))))
     }
 
@@ -274,10 +297,10 @@ trait Parsec[Token, Pos <: Position] {
    *  The token is consumed when the parser succeeds */
   def satisfy(p: Token => Boolean): Parser[Token] =
     new Parser[Token] {
-      def apply(input: Input): Result[Token] = input.stream match {
+      def apply(input: State): Result[Token] = input.stream match {
         case token #:: rest if p(token) =>
           val pos1 = nextPos(input.pos, token)
-          val input1 = Input(rest, pos1)
+          val input1 = makeState(input, rest, pos1)
           Consumed(Success(token, input1, Message(input.pos, None, Nil)))
         case token #:: rest =>
           // the token does not satisfy the predicate
@@ -290,7 +313,7 @@ trait Parsec[Token, Pos <: Position] {
   /** Parser that succeeds just like `p`, but pretends that no input was consumed when `p` fails */
   def attempt[T](p: =>Parser[T]): Parser[T] =
     new Parser[T] {
-      def apply(input: Input): Result[T] = p(input) match {
+      def apply(input: State): Result[T] = p(input) match {
         case Consumed(Error(msg)) => Empty(Error(msg))
         case res             => res
       }
@@ -305,7 +328,14 @@ trait Parsec[Token, Pos <: Position] {
     } yield x :: xs
   }
 
-  def run[T](p: Parser[T], in: Input): Reply[T] = p(in).reply
+  /** Parser that may depend on the current input state */
+  def withState[T](p: State => Parser[T]): Parser[T] =
+    new Parser[T] {
+      def apply(input: State): Result[T] =
+        p(input)(input)
+    }
+
+  def run[T](p: Parser[T], in: State): Reply[T] = p(in).reply
 
   // ========== internals ==========
 
@@ -314,7 +344,7 @@ trait Parsec[Token, Pos <: Position] {
     Empty(Error(merge(msg1, msg2)))
 
   /* merges both message as a succesful empty result */
-  private def mergeSuccess[T](value: T, rest: Input, msg1: Message, msg2: Message): Empty[T] =
+  private def mergeSuccess[T](value: T, rest: State, msg1: Message, msg2: Message): Empty[T] =
     Empty(Success(value, rest, merge(msg1, msg2)))
 
   private def merge(msg1: Message, msg2: Message) = (msg1, msg2) match {

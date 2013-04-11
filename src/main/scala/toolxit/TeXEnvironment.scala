@@ -13,7 +13,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+package toolxit
 
 import dimen._
 
@@ -36,21 +36,25 @@ import scala.collection.mutable.Map
  *  @author Lucas Satabin
  *
  */
-class TeXEnvironment {
+case class TeXEnvironment(parent: Option[TeXEnvironment]) {
   self =>
 
-  /** Enters a new group. */
-  def enterGroup {
-    environment = new Environment(Some(environment))
+  /** The root environment of this instance */
+  val root: TeXEnvironment = parent match {
+    case Some(env) => env.root
+    case None      => this
   }
 
-  /** Leaves a group. */
-  def leaveGroup {
-    environment.parent match {
-      case Some(env) => environment = env
+  /** Enters a new group and returns the new environment local to this group. */
+  def enterGroup =
+    new TeXEnvironment(Some(this))
+
+  /** Leaves a group and returns the environment corresponding to the parent group. */
+  def leaveGroup =
+    parent match {
+      case Some(env) => env
       case None => throw new TeXException("Root environment has no parent")
     }
-  }
 
   /** Exposes category management functions. */
   object category {
@@ -77,14 +81,14 @@ class TeXEnvironment {
        *  If the control sequence is not found, returns `None`.
        */
       def apply(name: String) =
-        root.findControlSequence(name)
+        root.css(name)
 
       /** Adds or replace the global control sequence identified by the given name
        *  with the new control sequence definition. This control sequence definition
        *  is global and so will be available in any context.
        */
       def update(name: String, cs: ControlSequence) =
-        root.addControlSequence(name, cs)
+        root.css(name) = cs
     }
 
     /** Finds and returns the control sequence definition identified by its name.
@@ -171,8 +175,7 @@ class TeXEnvironment {
 
   // ==== internals ====
 
-  private[this] val root = new Environment
-  private[this] var environment = root
+  private[this] val environment = new Environment
 
   // the available registers
   private[this] val counters = Array.fill(256)(0)
@@ -299,3 +302,5 @@ class TeXEnvironment {
   }
 
 }
+
+object RootTeXEnvironment extends TeXEnvironment(None)
