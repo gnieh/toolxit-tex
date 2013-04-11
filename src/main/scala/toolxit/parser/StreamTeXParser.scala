@@ -38,9 +38,7 @@ case class StreamTeXParser(input: Stream[Char]) extends TeXParser {
 
   private def characters(input: lexer.TeXLexerState): Stream[Token] = {
     import lexer._
-    for {
-      reply <- run(token, input)
-    } yield reply match {
+    run(token, input) match {
       case Success(tok, rest, _) =>
         tok #:: characters(rest)
       case Error(msg) =>

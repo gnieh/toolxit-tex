@@ -34,24 +34,26 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
     old.copy(stream = stream, pos = pos)
 
   /** any TeX token */
-  lazy val token = for (
-    ESCAPE_CHARACTER <|>
-    BEGINNING_OF_GROUP <|>
-    END_OF_GROUP <|>
-    MATH_SHIFT <|>
-    ALIGNMENT_TAB <|>
-    END_OF_LINE <|>
-    PARAMETER <|>
-    SUPERSCRIPT <|>
-    SUBSCRIPT <|>
-    IGNORED_CHARACTER <|>
-    SPACE <|>
-    LETTER <|>
-    OTHER_CHARACTER <|>
-    ACTIVE_CHARACTER <|>
-    COMMENT_CHARACTER <|>
-    INVALID_CHARACTER
-  )
+  lazy val token = withState { state =>
+    for(
+         c <- ESCAPE_CHARACTER <|>
+         BEGINNING_OF_GROUP <|>
+         END_OF_GROUP <|>
+         MATH_SHIFT <|>
+         ALIGNMENT_TAB <|>
+         END_OF_LINE <|>
+         PARAMETER <|>
+         SUPERSCRIPT <|>
+         SUBSCRIPT <|>
+         IGNORED_CHARACTER <|>
+         SPACE <|>
+         LETTER <|>
+         OTHER_CHARACTER <|>
+         ACTIVE_CHARACTER <|>
+         COMMENT_CHARACTER <|>
+         INVALID_CHARACTER)
+    yield CharacterToken(c, state.env.category(c))
+  }
 
   /** A character with category code 0 */
   lazy val ESCAPE_CHARACTER = withState { state =>
