@@ -29,22 +29,27 @@ case class StreamTeXParser(input: Stream[Char]) extends TeXParser {
 
   val env = new TeXEnvironment(None)
 
-  // TODO
-  lazy val commands: Stream[Command] = {
-    Stream.Empty
-  }
+  /** The stream of primitive TeX commands.
+   *  Macro expansion was performed as needed so that you have reduced commands */
+  lazy val commands: Stream[Command] =
+    parser.stream(parser.command, lexer.stream(lexer.token, input))
 
   // ========== internals ==========
 
-  protected[this] val lexer = new TeXLexers[StreamPosition[Char]] with StreamProcessor[Char, StreamPosition[Char], Token] {
+  protected[this] val lexer = new TeXLexers[StreamPosition[Char]] with StreamProcessor[Char, StreamPosition[Char]] {
 
-    val transformer = token
+    protected def createState(input: Stream[Char]): State =
+      TeXLexerState(input, StreamPosition(input, 0), ReadingState.N, env)
 
     protected def nextPos(current: StreamPosition[Char], read: Char): StreamPosition[Char] =
       current.next
   }
 
-  protected[this] val parser = new TeXParsers[StreamPosition[Token]] {
+  protected[this] val parser = new TeXParsers[StreamPosition[Token]] with StreamProcessor[Token, StreamPosition[Token]] {
+
+    protected def createState(input: Stream[Token]): State =
+      TeXState(input, StreamPosition(input, 0), env)
+
     protected def nextPos(current: StreamPosition[Token], read: Token): StreamPosition[Token] =
       current.next
   }

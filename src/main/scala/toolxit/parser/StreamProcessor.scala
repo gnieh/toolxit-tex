@@ -29,18 +29,22 @@ import scala.util.parsing.input.{
  *
  *  @author Lucas Satabin
  */
-trait StreamProcessor[Input, Pos <: Position, Output <: Positional] extends Parsers[Input, Pos] {
+trait StreamProcessor[In, Pos <: Position] extends Parsers[In, Pos] {
 
-  val transformer: Parser[Output]
+  protected def createState(input: Stream[In]): State
 
-  def stream(input: State): Stream[Output] =
+  def stream[Out <: Positional](p: Parser[Out], input: Stream[In]): Stream[Out] =
+    stream(p, createState(input))
+
+  def stream[Out <: Positional](p: Parser[Out], input: State): Stream[Out] =
     if(input.stream.isEmpty)
       Stream.Empty
     else
-      run(transformer, input) match {
+      run(p, input) match {
         case Success(token, rest, Message(pos, _, _)) =>
-          token.setPos(pos) #:: stream(rest)
+          token.setPos(pos) #:: stream(p, rest)
         case Error(msg) =>
           throw new TeXException(msg.toString)
       }
+
 }

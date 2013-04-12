@@ -15,12 +15,14 @@
 */
 package toolxit
 
+import scala.util.parsing.input.Positional
+
 /** A TeX command. Each token in TeX is a command.
  *  For example the letter 'A'is a command to typeset an 'A'.
  *
  *  @author Lucas Satabin
  *
  */
-sealed trait Command
+sealed trait Command extends Positional
 
 case class Typeset(what: String) extends Command
