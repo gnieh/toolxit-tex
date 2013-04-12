@@ -43,6 +43,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       tok <-
         // after control sequence or parameter token, we go to reading state `middle of line`
         (controlSequence <|> param post ((_, state) => state.copy(readingState = ReadingState.M))) <|>
+        EOL <|>
         (character post { (tok, state) =>
           val st =
             if(tok.category == Category.SPACE)
@@ -93,10 +94,10 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
 
   /** A TeX control sequence token */
   lazy val controlSequence: Parser[ControlSequenceToken] =
-    for {
+    (for {
       _ <- ESCAPE_CHARACTER
       cs <- csname
-    } yield ControlSequenceToken(cs)
+    } yield ControlSequenceToken(cs)) <#> "control sequence"
 
   /** A character with category code 0 */
   lazy val ESCAPE_CHARACTER = withState { state =>
@@ -106,7 +107,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.ESCAPE_CHARACTER
     } yield CharacterToken(c, cat)
-  }
+  } <#> "escape character (typically '\\')"
 
   /** A character with category code 1 */
   lazy val BEGINNING_OF_GROUP = withState { state =>
@@ -116,7 +117,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.BEGINNING_OF_GROUP
     } yield CharacterToken(c, cat)
-  }
+  } <#> "beginning of group character (typically '{')"
 
   /** A character with category code 2 */
   lazy val END_OF_GROUP = withState { state =>
@@ -126,7 +127,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.END_OF_GROUP
     } yield CharacterToken(c, cat)
-  }
+  } <#> "end of group character (typically '}')"
 
   /** A character with category code 3 */
   lazy val MATH_SHIFT = withState { state =>
@@ -136,7 +137,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.MATH_SHIFT
     } yield CharacterToken(c, cat)
-  }
+  } <#> "math shift character (typically '$')"
 
   /** A character with category code 4 */
   lazy val ALIGNMENT_TAB = withState { state =>
@@ -146,7 +147,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.ALIGNMENT_TAB
     } yield CharacterToken(c, cat)
-  }
+  } <#> "alignment tab character"
 
   /** A character with category code 5 */
   lazy val END_OF_LINE = withState { state =>
@@ -156,7 +157,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.END_OF_LINE
     } yield CharacterToken(c, cat)
-  }
+  } <#> "end of line character"
 
   /** A character with category code 6 */
   lazy val PARAMETER = withState { state =>
@@ -166,7 +167,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.PARAMETER
     } yield CharacterToken(c, cat)
-  }
+  } <#> "parameter character (typically '#')"
 
   /** A character with category code 7 */
   lazy val SUPERSCRIPT = withState { state =>
@@ -176,7 +177,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.SUPERSCRIPT
     } yield CharacterToken(c, cat)
-  }
+  } <#> "superscript character (typically '^')"
 
   /** A character with category code 8 */
   lazy val SUBSCRIPT = withState { state =>
@@ -186,7 +187,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.SUBSCRIPT
     } yield CharacterToken(c, cat)
-  }
+  } <#> "subscript character (typically '_')"
 
   /** A character with category code 9 */
   lazy val IGNORED_CHARACTER = withState { state =>
@@ -196,7 +197,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.IGNORED_CHARACTER
     } yield CharacterToken(c, cat)
-  }
+  } <#> "ignored character"
 
   /** A character with category code 10 */
   lazy val SPACE = withState { state =>
@@ -206,7 +207,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.SPACE
     } yield CharacterToken(c, cat)
-  }
+  } <#> "space character (typically ' ')"
 
   /** A character with category code 11 */
   lazy val LETTER = withState { state =>
@@ -216,7 +217,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.LETTER
     } yield CharacterToken(c, cat)
-  }
+  } <#> "letter (typically, any UTF-8 letter will do)"
 
   /** A character with category code 12 */
   lazy val OTHER_CHARACTER = withState { state =>
@@ -226,7 +227,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.OTHER_CHARACTER
     } yield CharacterToken(c, cat)
-  }
+  } <#> "other character"
 
   /** A character with category code 13 */
   lazy val ACTIVE_CHARACTER = withState { state =>
@@ -236,7 +237,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.ACTIVE_CHARACTER
     } yield CharacterToken(c, cat)
-  }
+  } <#> "active character"
 
   /** A character with category code 14 */
   lazy val COMMENT_CHARACTER = withState { state =>
@@ -246,7 +247,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.COMMENT_CHARACTER
     } yield CharacterToken(c, cat)
-  }
+  } <#> "comment character (typically '%')"
 
   /** A character with category code 15 */
   lazy val INVALID_CHARACTER = withState { state =>
@@ -256,7 +257,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.INVALID_CHARACTER
     } yield CharacterToken(c, cat)
-  }
+  } <#> "invalid character"
 
   /** A space character. concatenates consecutive spaces into only one if the reading state is
    *  'new line' or 'skipping blank' */
@@ -266,25 +267,24 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
   }
 
   /* Parses a TeX character from a standard character. this parser transforms special characters sequences to single characters */
-  lazy val anyTeX = (
-    (for {
+  lazy val anyTeX =
+    ((for {
       // next character of the form `^^XX` where X is one of `0123456789abcdef`
       sup1 <- RAW_SUPERSCRIPT
       sup2 <- RAW_SUPERSCRIPT
       if sup1 == sup2
       h1 <- satisfy(c => hexaLower.contains(c))
       h2 <- satisfy(c => hexaLower.contains(c))
-    } yield (h1 << 4 + h2).toChar) <|>
-    (for {
+    } yield ((hexaLower.indexOf(h1) << 4) + hexaLower.indexOf(h2)).toChar) <#> "^^XX where X is one of '0123456789abcdef'") <|>
+    ((for {
       // next character of the form `^^A`
       sup1 <- RAW_SUPERSCRIPT
       sup2 <- RAW_SUPERSCRIPT
       if sup1 == sup2
       letter <- satisfy(_ < 128)
-    } yield if(letter < 64) (letter + 64).toChar else (letter - 64).toChar) <|>
+    } yield if(letter < 64) (letter + 64).toChar else (letter - 64).toChar) <#> "^^X where X is a letter") <|>
     // otherwise, just any character will do
-    any
-  )
+    (any <#> "any character")
 
   lazy val EOL = withState { state =>
     (for {
