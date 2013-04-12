@@ -36,17 +36,10 @@ case class StreamTeXParser(input: Stream[Char]) extends TeXParser {
 
   // ========== internals ==========
 
-  private def characters(input: lexer.TeXLexerState): Stream[Token] = {
-    import lexer._
-    run(token, input) match {
-      case Success(tok, rest, Message(pos, _, _)) =>
-        tok.setPos(pos) #:: characters(rest)
-      case Error(msg) =>
-        throw new TeXException(msg.toString)
-    }
-  }
+  protected[this] val lexer = new TeXLexers[StreamPosition[Char]] with StreamProcessor[Char, StreamPosition[Char], Token] {
 
-  protected[this] val lexer = new TeXLexers[StreamPosition[Char]] {
+    val transformer = token
+
     protected def nextPos(current: StreamPosition[Char], read: Char): StreamPosition[Char] =
       current.next
   }
