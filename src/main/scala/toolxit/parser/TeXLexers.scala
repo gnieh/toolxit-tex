@@ -147,7 +147,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.ALIGNMENT_TAB
     } yield CharacterToken(c, cat)
-  } <#> "alignment tab character"
+  } <#> "alignment tab character (typically '&')"
 
   /** A character with category code 5 */
   lazy val END_OF_LINE = withState { state =>
@@ -227,7 +227,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.OTHER_CHARACTER
     } yield CharacterToken(c, cat)
-  } <#> "other character"
+  } <#> "other character (typically, characters like numbers, or parentheses)"
 
   /** A character with category code 13 */
   lazy val ACTIVE_CHARACTER = withState { state =>
@@ -237,7 +237,7 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
       cat = category(c)
       if cat == Category.ACTIVE_CHARACTER
     } yield CharacterToken(c, cat)
-  } <#> "active character"
+  } <#> "active character (typically '~')"
 
   /** A character with category code 14 */
   lazy val COMMENT_CHARACTER = withState { state =>
