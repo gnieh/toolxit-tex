@@ -222,7 +222,7 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
             case Some(p) => p.category(c)
             case None =>
               // if not specified otherwise, UTF-8 letters are in category `letter`
-              if (Character.isLetter(c))
+              if (c.isLetter)
                 Category.LETTER
               else
                 Category.OTHER_CHARACTER

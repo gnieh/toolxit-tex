@@ -22,9 +22,12 @@ import org.scalatest._
 
 class LexerTest extends FlatSpec with ShouldMatchers {
 
-  val lexer = new TeXLexers[StreamPosition[Char]] with StreamProcessor[Char, StreamPosition[Char], Token] {
+  val env = new TeXEnvironment(None)
 
-    val transformer = token
+  val lexer = new TeXLexers[StreamPosition[Char]] with StreamProcessor[Char, StreamPosition[Char]] {
+
+    protected def createState(input: Stream[Char]): State =
+      TeXLexerState(input, StreamPosition(input, 0), ReadingState.N, env)
 
     protected def nextPos(current: StreamPosition[Char], read: Char): StreamPosition[Char] =
       current.next
@@ -35,7 +38,8 @@ class LexerTest extends FlatSpec with ShouldMatchers {
 
   import lexer._
 
-  val env = new TeXEnvironment(None)
+  def stream(in: TeXLexerState): Stream[Token] =
+    lexer.stream(token, in)
 
   val basicCategories = Map(
     '^' -> Category.SUPERSCRIPT
@@ -103,6 +107,14 @@ class LexerTest extends FlatSpec with ShouldMatchers {
       CharacterToken('4', Category.OTHER_CHARACTER),
       CharacterToken('1', Category.OTHER_CHARACTER))
     stream(inputOf(env, input)) should be(expected)
+  }
+
+  it should "be considered as a letter as part of a control sequence name" in {
+    val input = "\\^^41BC".toStream
+    val expected = Stream(ControlSequenceToken("ABC"))
+    withCat(basicCategories) { env =>
+      stream(inputOf(env, input)) should be(expected)
+    }
   }
 
 }
