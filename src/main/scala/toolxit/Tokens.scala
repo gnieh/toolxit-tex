@@ -15,8 +15,10 @@
 */
 package toolxit
 
+import scala.util.parsing.input.Positional
+
 /** TeX works with a token stream */
-sealed trait Token
+sealed trait Token extends Positional
 
 /** A character token read as input. It may be one of the following tokens:
  *   - escape character (by default `\`)

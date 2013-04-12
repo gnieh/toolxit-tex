@@ -328,6 +328,10 @@ trait Parsers[Token, Pos <: Position] {
     } yield x :: xs
   }
 
+  /** Parser that succeeds with a list of elements recognized by parser `p` */
+  def many[T](p: =>Parser[T]): Parser[List[T]] =
+    many1(p) <|> success(List())
+
   /** Parser that may depend on the current input state */
   def withState[T](p: State => Parser[T]): Parser[T] =
     new Parser[T] {

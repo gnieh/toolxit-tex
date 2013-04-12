@@ -39,10 +39,10 @@ case class StreamTeXParser(input: Stream[Char]) extends TeXParser {
   private def characters(input: lexer.TeXLexerState): Stream[Token] = {
     import lexer._
     run(token, input) match {
-      case Success(tok, rest, _) =>
-        tok #:: characters(rest)
+      case Success(tok, rest, Message(pos, _, _)) =>
+        tok.setPos(pos) #:: characters(rest)
       case Error(msg) =>
-        throw new TeXException("")
+        throw new TeXException(msg.toString)
     }
   }
 
