@@ -16,6 +16,7 @@ object ToolXiTBuild extends Build {
   )
 
   lazy val globalDependencies = Seq(
+    "org.scalatest" %% "scalatest" % "2.0.M5b" % "test"
   )
 
   lazy val compileOptions = scalacOptions ++= Seq("-deprecation", "-feature")
@@ -50,6 +51,11 @@ object ToolXiTBuild extends Build {
           <id>satabin</id>
           <name>Lucas Satabin</name>
           <email>lucas.satabin@gnieh.org</email>
+        </developer>
+        <developer>
+          <id>chemicalstorm</id>
+          <name>Audric Schiltknecht</name>
+          <email>audric.schiltknecht@gnieh.org</email>
         </developer>
       </developers>
       <ciManagement>

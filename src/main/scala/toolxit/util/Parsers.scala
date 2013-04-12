@@ -213,7 +213,7 @@ trait Parsers[Token, Pos <: Position] {
     /** Deterministic choice. If this parser fails, the second is tried.
      *  It implements the 'longest match' rule if `this` parser succeeds without consuming
      *  any input, and `that` succeeds by consuming some input, then the second result is taken */
-    def <|>[U >: T](that: Parser[U]): Parser[U] =
+    def <|>[U >: T](that: =>Parser[U]): Parser[U] =
       new Parser[U] {
         def apply(input: State): Result[U] = self(input) match {
           case Empty(Error(msg1)) =>
@@ -231,6 +231,15 @@ trait Parsers[Token, Pos <: Position] {
                 mergeSuccess(value, rest, msg1, msg2)
               case Empty(Success(_, _, msg2)) =>
                 mergeSuccess(value, rest, msg1, msg2)
+              case consumed =>
+                consumed
+            }
+          case Consumed(Error(msg1)) =>
+            that(input) match {
+              case Empty(Error(msg2)) =>
+                mergeError(msg1, msg2)
+              case Empty(Success(token, rest, msg2)) =>
+                mergeSuccess(token, rest, msg1, msg2)
               case consumed =>
                 consumed
             }
