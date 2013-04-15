@@ -53,6 +53,10 @@ class LexerTest extends FlatSpec with ShouldMatchers {
     body(env1)
   }
 
+  def print(stream: Stream[Token]) {
+    println(stream.mkString("\n"))
+  }
+
   def inputOf(env: TeXEnvironment, st: Stream[Char]): TeXLexerState =
     TeXLexerState(st, StreamPosition(st, 0), ReadingState.N, env)
 

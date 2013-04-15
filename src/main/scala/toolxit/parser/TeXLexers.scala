@@ -18,14 +18,12 @@ package parser
 
 import util._
 
-import scala.util.parsing.input.Position
-
 /** A bunch of parsers that transform stream of characters into TeX tokens.
  *  This is a kind of lexer for TeX inputs
  *
  *  @author Lucas Satabin
  */
-abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
+abstract class TeXLexers extends Parsers[Char] {
 
   type State = TeXLexerState
 
@@ -37,8 +35,8 @@ abstract class TeXLexers[Pos <: Position] extends Parsers[Char, Pos] {
   /** any TeX token */
   lazy val token: Parser[Token] =
     for {
-      // ignore skippable whitespaces and comments
-      _ <- many(skipWhitespace <|> comment)
+      // ignore skippable whitespaces ignored characters, and comments
+      _ <- many(skipWhitespace <|> IGNORED_CHARACTER <|> comment)
       // then read the token and change reading state when needed
       tok <-
         // after control sequence or parameter token, we go to reading state `middle of line`

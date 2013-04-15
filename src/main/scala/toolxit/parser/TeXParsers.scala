@@ -18,14 +18,12 @@ package parser
 
 import util._
 
-import scala.util.parsing.input.Position
-
 /** A bunch of parsers that transform and expand the TeX tokens. The results
  *  are primitive TeX commands. The parsers must perform macro expansion when needed.
  *
  *  @author Lucas Satabin
  */
-abstract class TeXParsers[Pos <: Position] extends Parsers[Token, Pos] {
+abstract class TeXParsers extends Parsers[Token] {
 
   type State = TeXState
 

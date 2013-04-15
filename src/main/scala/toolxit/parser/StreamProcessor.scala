@@ -29,7 +29,7 @@ import scala.util.parsing.input.{
  *
  *  @author Lucas Satabin
  */
-trait StreamProcessor[In, Pos <: Position] extends Parsers[In, Pos] {
+trait StreamProcessor[In] extends Parsers[In] {
 
   protected def createState(input: Stream[In]): State
 

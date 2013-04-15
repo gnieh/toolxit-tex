@@ -36,22 +36,18 @@ case class StreamTeXParser(input: Stream[Char]) extends TeXParser {
 
   // ========== internals ==========
 
-  protected[this] val lexer = new TeXLexers[StreamPosition[Char]] with StreamProcessor[Char, StreamPosition[Char]] {
+  protected[this] val lexer = new TeXLexers with StreamProcessor[Char] {
 
     protected def createState(input: Stream[Char]): State =
       TeXLexerState(input, StreamPosition(input, 0), ReadingState.N, env)
 
-    protected def nextPos(current: StreamPosition[Char], read: Char): StreamPosition[Char] =
-      current.next
   }
 
-  protected[this] val parser = new TeXParsers[StreamPosition[Token]] with StreamProcessor[Token, StreamPosition[Token]] {
+  protected[this] val parser = new TeXParsers with StreamProcessor[Token] {
 
     protected def createState(input: Stream[Token]): State =
       TeXState(input, StreamPosition(input, 0), env)
 
-    protected def nextPos(current: StreamPosition[Token], read: Token): StreamPosition[Token] =
-      current.next
   }
 
 }

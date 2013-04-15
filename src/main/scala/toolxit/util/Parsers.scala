@@ -15,19 +15,20 @@
 */
 package toolxit.util
 
-import scala.util.parsing.input.Position
-
 /** Parser combinators implementation based on the paper *Parsec: Direct Style Monadic Parser Combinators For The Real World*
  *
  *  @author Lucas Satabin
  */
-trait Parsers[Token, Pos <: Position] {
+trait Parsers[Token] {
+
+  type Pos = StreamPosition[Token]
 
   /* The type of the parser state must contain (at least) the remaining input and the current position */
   type State <: Input
 
   /** Computes the next position from the current position and read token */
-  protected def nextPos(current: Pos, read: Token): Pos
+  protected def nextPos(current: Pos, read: Token): Pos =
+    current.next
 
   /** Creates a state from the `remaining` input and current position `pos` */
   protected def makeState(old: State, remaining: Stream[Token], pos: Pos): State
