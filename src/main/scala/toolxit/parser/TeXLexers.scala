@@ -40,29 +40,34 @@ abstract class TeXLexers extends Parsers[Char] {
       // then read the token and change reading state when needed
       tok <-
         // after control sequence or parameter token, we go to reading state `middle of line`
-        (controlSequence <|> param post ((_, state) => state.copy(readingState = ReadingState.M))) <|>
+        (for {
+          t <- controlSequence <|> param
+          () <- updateState(state => state.copy(readingState = ReadingState.M))
+        } yield t) <|>
         EOL <|>
-        (character post { (tok, state) =>
-          val st =
-            if(tok.category == Category.SPACE)
-              // skip whitespaces after a space character
-              ReadingState.S
-            else
-              // middle of the line after other character
-              ReadingState.M
-          state.copy(readingState = st)
-        })
+        (for {
+          t <- character
+          () <- updateState { state =>
+            val st =
+              if(t.category == Category.SPACE)
+                // skip whitespaces after a space character
+                ReadingState.S
+              else
+                // middle of the line after other character
+                ReadingState.M
+            state.copy(readingState = st)
+          }
+        } yield t)
     } yield tok
 
   /** A TeX comment token */
-  lazy val comment: Parser[String] = withState { state =>
-    import state.env._
+  lazy val comment: Parser[String] =
     for {
       _ <- COMMENT_CHARACTER
-      com <- many(anyTeX filter (c => category(c) != Category.END_OF_LINE))
+      state <- getState
+      com <- many(anyTeX filter (c => state.env.category(c) != Category.END_OF_LINE))
       _ <- END_OF_LINE
     } yield com.mkString("")
-  }
 
   /** A TeX macro parameter */
   lazy val param: Parser[ParameterToken] =
@@ -98,171 +103,157 @@ abstract class TeXLexers extends Parsers[Char] {
     } yield ControlSequenceToken(cs)) <#> "control sequence"
 
   /** A character with category code 0 */
-  lazy val ESCAPE_CHARACTER = withState { state =>
-    import state.env._
-    for {
+  lazy val ESCAPE_CHARACTER =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.ESCAPE_CHARACTER
-    } yield CharacterToken(c, cat)
-  } <#> "escape character (typically '\\')"
+    } yield CharacterToken(c, cat)) <#> "escape character (typically '\\')"
 
   /** A character with category code 1 */
-  lazy val BEGINNING_OF_GROUP = withState { state =>
-    import state.env._
-    for {
+  lazy val BEGINNING_OF_GROUP =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.BEGINNING_OF_GROUP
-    } yield CharacterToken(c, cat)
-  } <#> "beginning of group character (typically '{')"
+    } yield CharacterToken(c, cat)) <#> "beginning of group character (typically '{')"
 
   /** A character with category code 2 */
-  lazy val END_OF_GROUP = withState { state =>
-    import state.env._
-    for {
+  lazy val END_OF_GROUP =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.END_OF_GROUP
-    } yield CharacterToken(c, cat)
-  } <#> "end of group character (typically '}')"
+    } yield CharacterToken(c, cat)) <#> "end of group character (typically '}')"
 
   /** A character with category code 3 */
-  lazy val MATH_SHIFT = withState { state =>
-    import state.env._
-    for {
+  lazy val MATH_SHIFT =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.MATH_SHIFT
-    } yield CharacterToken(c, cat)
-  } <#> "math shift character (typically '$')"
+    } yield CharacterToken(c, cat)) <#> "math shift character (typically '$')"
 
   /** A character with category code 4 */
-  lazy val ALIGNMENT_TAB = withState { state =>
-    import state.env._
-    for {
+  lazy val ALIGNMENT_TAB =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.ALIGNMENT_TAB
-    } yield CharacterToken(c, cat)
-  } <#> "alignment tab character (typically '&')"
+    } yield CharacterToken(c, cat)) <#> "alignment tab character (typically '&')"
 
   /** A character with category code 5 */
-  lazy val END_OF_LINE = withState { state =>
-    import state.env._
-    for {
+  lazy val END_OF_LINE =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.END_OF_LINE
-    } yield CharacterToken(c, cat)
-  } <#> "end of line character"
+    } yield CharacterToken(c, cat)) <#> "end of line character"
 
   /** A character with category code 6 */
-  lazy val PARAMETER = withState { state =>
-    import state.env._
-    for {
+  lazy val PARAMETER =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.PARAMETER
-    } yield CharacterToken(c, cat)
-  } <#> "parameter character (typically '#')"
+    } yield CharacterToken(c, cat)) <#> "parameter character (typically '#')"
 
   /** A character with category code 7 */
-  lazy val SUPERSCRIPT = withState { state =>
-    import state.env._
-    for {
+  lazy val SUPERSCRIPT =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.SUPERSCRIPT
-    } yield CharacterToken(c, cat)
-  } <#> "superscript character (typically '^')"
+    } yield CharacterToken(c, cat)) <#> "superscript character (typically '^')"
 
   /** A character with category code 8 */
-  lazy val SUBSCRIPT = withState { state =>
-    import state.env._
-    for {
+  lazy val SUBSCRIPT =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.SUBSCRIPT
-    } yield CharacterToken(c, cat)
-  } <#> "subscript character (typically '_')"
+    } yield CharacterToken(c, cat)) <#> "subscript character (typically '_')"
 
   /** A character with category code 9 */
-  lazy val IGNORED_CHARACTER = withState { state =>
-    import state.env._
-    for {
+  lazy val IGNORED_CHARACTER =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.IGNORED_CHARACTER
-    } yield CharacterToken(c, cat)
-  } <#> "ignored character"
+    } yield CharacterToken(c, cat)) <#> "ignored character"
 
   /** A character with category code 10 */
-  lazy val SPACE = withState { state =>
-    import state.env._
-    for {
+  lazy val SPACE =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.SPACE
-    } yield CharacterToken(c, cat)
-  } <#> "space character (typically ' ')"
+    } yield CharacterToken(c, cat)) <#> "space character (typically ' ')"
 
   /** A character with category code 11 */
-  lazy val LETTER = withState { state =>
-    import state.env._
-    for {
+  lazy val LETTER =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.LETTER
-    } yield CharacterToken(c, cat)
-  } <#> "letter (typically, any UTF-8 letter will do)"
+    } yield CharacterToken(c, cat)) <#> "letter (typically, any UTF-8 letter will do)"
 
   /** A character with category code 12 */
-  lazy val OTHER_CHARACTER = withState { state =>
-    import state.env._
-    for {
+  lazy val OTHER_CHARACTER =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.OTHER_CHARACTER
-    } yield CharacterToken(c, cat)
-  } <#> "other character (typically, characters like numbers, or parentheses)"
+    } yield CharacterToken(c, cat)) <#> "other character (typically, characters like numbers, or parentheses)"
 
   /** A character with category code 13 */
-  lazy val ACTIVE_CHARACTER = withState { state =>
-    import state.env._
-    for {
+  lazy val ACTIVE_CHARACTER =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.ACTIVE_CHARACTER
-    } yield CharacterToken(c, cat)
-  } <#> "active character (typically '~')"
+    } yield CharacterToken(c, cat)) <#> "active character (typically '~')"
 
   /** A character with category code 14 */
-  lazy val COMMENT_CHARACTER = withState { state =>
-    import state.env._
-    for {
+  lazy val COMMENT_CHARACTER =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.COMMENT_CHARACTER
-    } yield CharacterToken(c, cat)
-  } <#> "comment character (typically '%')"
+    } yield CharacterToken(c, cat)) <#> "comment character (typically '%')"
 
   /** A character with category code 15 */
-  lazy val INVALID_CHARACTER = withState { state =>
-    import state.env._
-    for {
+  lazy val INVALID_CHARACTER =
+    (for {
       c <- anyTeX
-      cat = category(c)
+      state <- getState
+      cat = state.env.category(c)
       if cat == Category.INVALID_CHARACTER
-    } yield CharacterToken(c, cat)
-  } <#> "invalid character"
+    } yield CharacterToken(c, cat)) <#> "invalid character"
 
   /** A space character. concatenates consecutive spaces into only one if the reading state is
    *  'new line' or 'skipping blank' */
-  lazy val skipWhitespace = withState { state =>
-    many1(SPACE filter (_ =>
-        state.readingState == ReadingState.S || state.readingState == ReadingState.N))
-  }
+  lazy val skipWhitespace =
+    for {
+      _ <- many1(SPACE)
+      state <- getState
+      if state.readingState == ReadingState.S || state.readingState == ReadingState.N
+    } yield ()
 
   /* Parses a TeX character from a standard character. this parser transforms special characters sequences to single characters */
   lazy val anyTeX =
@@ -284,9 +275,10 @@ abstract class TeXLexers extends Parsers[Char] {
     // otherwise, just any character will do
     (any <#> "any character")
 
-  lazy val EOL = withState { state =>
+  lazy val EOL =
     (for {
       _ <- END_OF_LINE
+      state <- getState
       if state.readingState != ReadingState.S
     } yield
       if(state.readingState == ReadingState.N) {
@@ -304,16 +296,17 @@ abstract class TeXLexers extends Parsers[Char] {
       else
         state
     }
-  }
 
   // ========== internals ==========
 
   private val hexaLower = "0123456789abcdef"
 
-  private lazy val RAW_SUPERSCRIPT = withState { state =>
-    import state.env._
-    any filter (c => category(c) == Category.SUPERSCRIPT)
-  }
+  private lazy val RAW_SUPERSCRIPT =
+    for {
+      c <- any
+      state <- getState
+      if state.env.category(c) == Category.SUPERSCRIPT
+    } yield c
 
   private lazy val digit =
     for {

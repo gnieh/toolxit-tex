@@ -37,4 +37,75 @@ abstract class TeXParsers extends Parsers[Token] {
     // TODO implement
     fail("not implemented yet")
 
+  /** Parser that parses the next expanded token */
+  lazy val expanded: Parser[Token] =
+    // TODO implement
+    fail("not implemented yet")
+
+  /** Parser that accepts the given character token, with same category code */
+  def char(c: CharacterToken): Parser[CharacterToken] =
+    for {
+      (ch @ CharacterToken(value, cat)) <- expanded
+      if value == c.value && cat == c.category
+    } yield ch
+
+  /** Parser that accepts the given character token sequence, with same category codes */
+  def charSequence(chars: List[CharacterToken]): Parser[Unit] = chars match {
+    case c :: rest => char(c) >>= (_ => charSequence(rest))
+    case Nil       => success()
+  }
+
+  /** Parser that accepts any control sequence */
+  lazy val controlSequence: Parser[ControlSequenceToken] =
+    for {
+      (cs @ ControlSequenceToken(_)) <- expanded
+    } yield cs
+
+  /** Parser that accepts the control sequence with the given name */
+  def controlSequence(name: String): Parser[ControlSequenceToken] =
+    for {
+      cs <- controlSequence
+      if cs.name == name
+    } yield cs
+
+  /** Parser that accepts any character of category 'beginning of group' */
+  lazy val beginningOfGroup: Parser[CharacterToken] =
+    for {
+      (c @ CharacterToken(_, cat)) <- expanded
+      if cat == Category.BEGINNING_OF_GROUP
+    } yield c
+
+  /** Parser that accepts any character of category 'end of group' */
+  lazy val endOfGroup: Parser[CharacterToken] =
+    for {
+      (c @ CharacterToken(_, cat)) <- expanded
+      if cat == Category.END_OF_GROUP
+    } yield c
+
+  lazy val param: Parser[ParameterToken] =
+    for {
+      (p @ ParameterToken(_)) <- expanded
+    } yield p
+
+  /** Parser that parses the given parameter tokens for macro invocation */
+  def paramParser(params: List[Parameter]): Parser[List[Token]] = params match {
+    case Left(ParameterToken(_)) :: rest =>
+      // number does not matter here, we know that it is correct
+      for {
+        // parse the next (expanded) token
+        p <- expanded
+        // then the rest of the parameters
+        rest <- paramParser(rest)
+      } yield p :: rest
+    case Right(chars) :: rest =>
+      for {
+        // parse these delimiter characters (and ignore them)
+        _ <- charSequence(chars)
+        // then the rest of the parameters
+        rest <- paramParser(rest)
+      } yield rest
+    case Nil =>
+      success(Nil)
+  }
+
 }

@@ -342,12 +342,44 @@ trait Parsers[Token] {
   def many[T](p: =>Parser[T]): Parser[List[T]] =
     many1(p) <|> success(List())
 
-  /** Parser that may depend on the current input state */
-  def withState[T](p: State => Parser[T]): Parser[T] =
-    new Parser[T] {
-      def apply(input: State): Result[T] =
-        p(input)(input)
+  /** Parser that returns the current state without consuming any input */
+  lazy val getState: Parser[State] =
+    new Parser[State] {
+      def apply(input: State): Result[State] =
+        Empty(Success(input, input, Message(input.pos, None, Nil)))
     }
+
+  /** Parser that sets the state to the given value without consuming any input */
+  def setState(st: State): Parser[Unit] =
+    new Parser[Unit] {
+      def apply(input: State): Result[Unit] =
+        Empty(Success((), st, Message(input.pos, None, Nil)))
+    }
+
+  /** Parser that applies the function `f` to the current state */
+  def updateState(f: State => State): Parser[Unit] =
+    new Parser[Unit] {
+      def apply(input: State): Result[Unit] =
+        Empty (Success((), f(input), Message(input.pos, None, Nil)))
+    }
+
+  /** Parser that is repeated until the end parser is reached. The terminating input is not consumed */
+  def until[T](p: =>Parser[T], end: =>Parser[_]): Parser[List[T]] =
+    (for {
+      () <- lookAhead(end)
+    } yield Nil) <|>
+    (for {
+      x <- p
+      xs <- until(p, end)
+    } yield x :: xs)
+
+  /** Parser that looks if the next parser matches without consuming any input */
+  def lookAhead(p: =>Parser[_]): Parser[Unit] =
+    for {
+      st <- getState
+      _ <- p
+      () <- setState(st)
+    } yield ()
 
   def run[T](p: Parser[T], in: State): Reply[T] = p(in).reply
 
