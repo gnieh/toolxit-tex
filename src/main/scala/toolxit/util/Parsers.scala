@@ -68,12 +68,18 @@ trait Parsers[Token] {
    */
   case class Empty[T](reply: Reply[T]) extends Result[T]
 
-  /** A positioned error message with an optional encountered unexpected token and a
-   *  list of expected messages.
+  /** A positioned error message.
    *
    *  @author Lucas Satabin
    */
-  case class Message(pos: Pos, unexpected: Option[Token], expected: List[String]) {
+  sealed trait Message {
+    val pos: Pos
+  }
+  /** An unexpected token was found.
+   *
+   *  @author Lucas Satabin
+   */
+  case class Unexpected(pos: Pos, unexpected: Option[Token], expected: List[String]) extends Message {
 
     override def toString = {
       val found = unexpected map (_.toString) getOrElse "EOI"
@@ -81,6 +87,16 @@ trait Parsers[Token] {
       "Error at " + pos + "\n" + pos.longString + "\nfound: " + found + "\n" + expect
     }
 
+  }
+
+  /** Some user defined error message (typically thrown by a `fail`)
+   *
+   *  @author Lucas Satabin
+   */
+  case class UserMessage(pos: Pos, msg: String) extends Message {
+    override def toString = {
+      msg + "\nat " + pos
+    }
   }
 
   /** An actual parsing result with a (possibly empty) error message
@@ -149,6 +165,7 @@ trait Parsers[Token] {
      *  This is the basic operation used to build sequences. */
     def >>=[U](fun: T => Parser[U]): Parser[U] =
       new Parser[U] {
+
         def apply(input: State): Result[U] = self(input) match {
           case Empty(reply1) => reply1 match {
             case Success(value, rest, msg) =>
@@ -171,6 +188,7 @@ trait Parsers[Token] {
     /** Applies transformation on the value resulting from this parser. */
     def fmap[U](fun: T => U): Parser[U] =
       new Parser[U] {
+
         def apply(input: State): Result[U] = self(input) match {
           case Consumed(Success(value, rest, msg)) =>
             Consumed(Success(fun(value), rest, msg))
@@ -199,13 +217,14 @@ trait Parsers[Token] {
      *  returned */
     def filter(p: T => Boolean): Parser[T] =
       new Parser[T] {
+
         def apply(input: State): Result[T] = self(input) match {
           case res @ Empty(Success(value, _, _)) if p(value) =>
             res
           case res @ Consumed(Success(value, _, _)) if p(value) =>
             res
           case Empty(Success(_, _, _)) | Consumed(Success(_, _, _)) =>
-            Empty(Error(Message(input.pos, input.stream.headOption, Nil)))
+            Empty(Error(Unexpected(input.pos, input.stream.headOption, Nil)))
           case error =>
             error
         }
@@ -216,6 +235,7 @@ trait Parsers[Token] {
      *  any input, and `that` succeeds by consuming some input, then the second result is taken */
     def <|>[U >: T](that: =>Parser[U]): Parser[U] =
       new Parser[U] {
+
         def apply(input: State): Result[U] = self(input) match {
           case Empty(Error(msg1)) =>
             that(input) match {
@@ -253,9 +273,10 @@ trait Parsers[Token] {
      *  to `msg` when `this` fails without consuming any input. */
     def <#>(msg: String): Parser[T] =
       new Parser[T] {
+
         def apply(input: State): Result[T] = self(input) match {
-          case Empty(Error(Message(pos, unexp, _))) =>
-            Empty(Error(Message(pos, unexp, List(msg))))
+          case Empty(Error(Unexpected(pos, unexp, _))) =>
+            Empty(Error(Unexpected(pos, unexp, List(msg))))
           case res =>
             res
         }
@@ -265,6 +286,7 @@ trait Parsers[Token] {
      *  It does nothing if `this` parser failed */
     def post(f: (T,State) => State): Parser[T] =
       new Parser[T] {
+
         def apply(input: State): Result[T] = self(input) match {
           case Empty(Success(value, input1, msg)) =>
             Empty(Success(value, f(value, input1), msg))
@@ -280,50 +302,57 @@ trait Parsers[Token] {
   /** Parser that always succeeds as long as there is at least one token left in the input */
   lazy val any: Parser[Token] =
     new Parser[Token] {
+
       def apply(input: State): Result[Token] = input.stream match {
         case token #:: rest =>
-          Consumed(Success(token, makeState(input, rest, nextPos(input.pos, token)), Message(input.pos, None, Nil)))
+          Consumed(Success(token, makeState(input, rest, nextPos(input.pos, token)), Unexpected(input.pos, None, Nil)))
         case Stream.Empty =>
-          Empty(Error(Message(input.pos, None, List("any token"))))
+          Empty(Error(Unexpected(input.pos, None, List("any token"))))
       }
     }
 
   /** Parser that always succeeds without consuming any value */
   def success[T](value: T): Parser[T] =
     new Parser[T] {
+
       def apply(input: State): Result[T] =
         // ok without consuming anything
-        Empty(Success(value, input, Message(input.pos, None, Nil)))
+        Empty(Success(value, input, Unexpected(input.pos, None, Nil)))
     }
 
   /** Parser that always fails with the given message and wihout consuming any input */
   def fail(msg: String): Parser[Nothing] =
     new Parser[Nothing] {
+
       def apply(input: State): Result[Nothing] =
-        Empty(Error(Message(input.pos, input.stream.headOption, List(msg))))
+        Empty(Error(UserMessage(input.pos, msg)))
     }
 
   /** Parser that succeeds if the next token satisfies the predicate.
    *  The token is consumed when the parser succeeds */
   def satisfy(p: Token => Boolean): Parser[Token] =
     new Parser[Token] {
+
       def apply(input: State): Result[Token] = input.stream match {
         case token #:: rest if p(token) =>
           val pos1 = nextPos(input.pos, token)
           val input1 = makeState(input, rest, pos1)
-          Consumed(Success(token, input1, Message(input.pos, None, Nil)))
+          Consumed(Success(token, input1, Unexpected(input.pos, None, Nil)))
         case token #:: rest =>
           // the token does not satisfy the predicate
-          Empty(Error(Message(input.pos, Some(token), Nil)))
+          Empty(Error(Unexpected(input.pos, Some(token), Nil)))
         case _ =>
-          Empty(Error(Message(input.pos, None, Nil)))
+          Empty(Error(Unexpected(input.pos, None, Nil)))
       }
     }
 
   /** Parser that succeeds just like `p`, but pretends that no input was consumed when `p` fails */
   def attempt[T](p: =>Parser[T]): Parser[T] =
     new Parser[T] {
-      def apply(input: State): Result[T] = p(input) match {
+
+      lazy val p1 = p
+
+      def apply(input: State): Result[T] = p1(input) match {
         case Consumed(Error(msg)) => Empty(Error(msg))
         case res             => res
       }
@@ -342,25 +371,34 @@ trait Parsers[Token] {
   def many[T](p: =>Parser[T]): Parser[List[T]] =
     many1(p) <|> success(List())
 
+  /** Parser that always succeeds, with an optional sequence */
+  def opt[T](p: =>Parser[T]): Parser[Option[T]] =
+    (for {
+      res <- p
+    } yield Some(res)) <|> success(None)
+
   /** Parser that returns the current state without consuming any input */
   lazy val getState: Parser[State] =
     new Parser[State] {
+
       def apply(input: State): Result[State] =
-        Empty(Success(input, input, Message(input.pos, None, Nil)))
+        Empty(Success(input, input, Unexpected(input.pos, None, Nil)))
     }
 
   /** Parser that sets the state to the given value without consuming any input */
   def setState(st: State): Parser[Unit] =
     new Parser[Unit] {
+
       def apply(input: State): Result[Unit] =
-        Empty(Success((), st, Message(input.pos, None, Nil)))
+        Empty(Success((), st, Unexpected(input.pos, None, Nil)))
     }
 
   /** Parser that applies the function `f` to the current state */
   def updateState(f: State => State): Parser[Unit] =
     new Parser[Unit] {
+
       def apply(input: State): Result[Unit] =
-        Empty (Success((), f(input), Message(input.pos, None, Nil)))
+        Empty(Success((), f(input), Unexpected(input.pos, None, Nil)))
     }
 
   /** Parser that is repeated until the end parser is reached. The terminating input is not consumed */
@@ -371,6 +409,15 @@ trait Parsers[Token] {
     (for {
       x <- p
       xs <- until(p, end)
+    } yield x :: xs)
+
+  def untilInclusive[T](p: =>Parser[T], end: =>Parser[T]): Parser[List[T]] =
+    (for {
+      e <- end
+    } yield List(e)) <|>
+    (for {
+      x <- p
+      xs <- untilInclusive(p, end)
     } yield x :: xs)
 
   /** Parser that looks if the next parser matches without consuming any input */
@@ -394,8 +441,12 @@ trait Parsers[Token] {
     Empty(Success(value, rest, merge(msg1, msg2)))
 
   private def merge(msg1: Message, msg2: Message) = (msg1, msg2) match {
-    case (Message(pos, tok, expected1), Message(_, _, expected2)) =>
-      Message(pos, tok, expected1 ++ expected2)
+    case (Unexpected(pos, tok, expected1), Unexpected(_, _, expected2)) =>
+      Unexpected(pos, tok, expected1 ++ expected2)
+    case (msg, Unexpected(_, _, _)) =>
+      msg
+    case (_, msg) =>
+      msg
   }
 
 

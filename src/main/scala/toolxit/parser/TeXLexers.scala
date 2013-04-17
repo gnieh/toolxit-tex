@@ -39,10 +39,10 @@ abstract class TeXLexers extends Parsers[Char] {
       _ <- many(skipWhitespace <|> IGNORED_CHARACTER <|> comment)
       // then read the token and change reading state when needed
       tok <-
-        // after control sequence or parameter token, we go to reading state `middle of line`
+        // after control sequence, we go to reading state `middle of line`
         (for {
-          t <- controlSequence <|> param
-          () <- updateState(state => state.copy(readingState = ReadingState.M))
+          t <- controlSequence
+          () <- updateState(state => state.copy(readingState = ReadingState.S))
         } yield t) <|>
         EOL <|>
         (for {
@@ -68,13 +68,6 @@ abstract class TeXLexers extends Parsers[Char] {
       com <- many(anyTeX filter (c => state.env.category(c) != Category.END_OF_LINE))
       _ <- END_OF_LINE
     } yield com.mkString("")
-
-  /** A TeX macro parameter */
-  lazy val param: Parser[ParameterToken] =
-    for {
-      _ <- PARAMETER
-      nb <- digit
-    } yield ParameterToken(nb)
 
   /** A TeX character token */
   lazy val character: Parser[CharacterToken] =
@@ -308,14 +301,12 @@ abstract class TeXLexers extends Parsers[Char] {
       if state.env.category(c) == Category.SUPERSCRIPT
     } yield c
 
-  private lazy val digit =
-    for {
-      c <- any
-      if c.isDigit
-    } yield (c - 48)
-
   private lazy val csname =
-    (for(letters <- many1(LETTER)) yield letters.map(_.value).mkString("")) <|>
-    (anyTeX map (_.toString) post((_, state) => state.copy(readingState = ReadingState.S)))
+    (for {
+      letters <- many1(LETTER)
+    } yield letters.map(_.value).mkString("")) <|>
+    (for {
+      c <- anyTeX
+    } yield c.toString)
 
 }

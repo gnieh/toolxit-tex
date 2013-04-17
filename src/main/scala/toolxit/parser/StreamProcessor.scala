@@ -41,8 +41,8 @@ trait StreamProcessor[In] extends Parsers[In] {
       Stream.Empty
     else
       run(p, input) match {
-        case Success(token, rest, Message(pos, _, _)) =>
-          token.setPos(pos) #:: stream(p, rest)
+        case Success(token, rest, msg) =>
+          token.setPos(msg.pos) #:: stream(p, rest)
         case Error(msg) =>
           throw new TeXException(msg.toString)
       }

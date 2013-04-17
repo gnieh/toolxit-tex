@@ -24,13 +24,11 @@ class LexerTest extends FlatSpec with ShouldMatchers {
 
   val env = new TeXEnvironment(None)
 
-  val lexer = new TeXLexers[StreamPosition[Char]] with StreamProcessor[Char, StreamPosition[Char]] {
+  val lexer = new TeXLexers with StreamProcessor[Char] {
 
     protected def createState(input: Stream[Char]): State =
       TeXLexerState(input, StreamPosition(input, 0), ReadingState.N, env)
 
-    protected def nextPos(current: StreamPosition[Char], read: Char): StreamPosition[Char] =
-      current.next
   }
 
   def stringOf(token: Token) =

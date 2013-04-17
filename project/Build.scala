@@ -16,7 +16,8 @@ object ToolXiTBuild extends Build {
   )
 
   lazy val globalDependencies = Seq(
-    "org.scalatest" %% "scalatest" % "2.0.M5b" % "test"
+    "org.scalatest" %% "scalatest" % "2.0.M5b" % "test",
+    "org.gnieh" %% "gnieh-pp" % "0.1"
   )
 
   lazy val compileOptions = scalacOptions ++= Seq("-deprecation", "-feature")

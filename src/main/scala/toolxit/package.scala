@@ -23,7 +23,7 @@ package object toolxit {
 
   import dimen._
 
-  type Parameter = Either[ParameterToken, List[CharacterToken]]
+  type Parameter = Either[ParameterToken, List[Token]]
 
   implicit def toDimenMult(i: Int) = new {
     def *(dim: Dimension) = dim.copy(sps = (dim.sps * i))

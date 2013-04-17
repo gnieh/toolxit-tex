@@ -17,8 +17,12 @@ package toolxit
 
 import scala.util.parsing.input.Positional
 
+import gnieh.pp._
+
 /** TeX works with a token stream */
-sealed trait Token extends Positional
+sealed trait Token extends Positional {
+  def debug: Doc
+}
 
 /** A character token read as input. It may be one of the following tokens:
  *   - escape character (by default `\`)
@@ -41,17 +45,38 @@ sealed trait Token extends Positional
  *  @author Lucas Satabin
  *
  */
-case class CharacterToken(value: Char, category: Category.Value) extends Token
+case class CharacterToken(value: Char, category: Category.Value) extends Token {
+  lazy val debug = "Character(" :: value :: ")[" :: Category.debug(category) :: "]"
+}
 
-/** A control sequence token has not category. */
-case class ControlSequenceToken(name: String) extends Token
+/** A control sequence token has not category.
+ *
+ *  @author Lucas Satabin
+ */
+case class ControlSequenceToken(name: String) extends Token {
+  lazy val debug = "ControlSequence(" :: name :: ")"
+}
 
 /** A parameter token may only occur in the parameter or replacement text
  *  of a control sequence.
+ *
+ *  @author Lucas Satabin
  */
-case class ParameterToken(number: Int) extends Token
+case class ParameterToken(number: Int) extends Token {
+  lazy val debug = "Parameter(" :: number :: ")"
+}
 
-/** A token that was not expanded (following `\noexpand` control sequence).
- *  It shall be interpreted as `\relax`.
+/** A bunch of token nested between a token of category BEGINNING_OF_GROUP and
+ *  a token of category END_OF_GROUP
+ *
+ *  @author Lucas Satabin
  */
-case class NotExpandedToken(inner: Token) extends Token
+case class GroupToken(inner: List[Token]) extends Token {
+  lazy val debug = group {
+    nest(1) {
+      "Group(" :: inner.foldRight(empty) { (token, acc) =>
+        token.debug :: "," :|: acc
+      }
+    } :: ")"
+  }
+}
