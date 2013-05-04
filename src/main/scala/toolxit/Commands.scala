@@ -66,7 +66,7 @@ case object CCrCr extends Command
 
 case class CCsName(tokens: List[Token]) extends Command
 
-case class CDef(cs: ControlSequence, modifiers: List[Modifier.Value], parameters: List[Parameter], replacement: List[Token]) extends Command
+case class CDef(name: String, modifiers: List[Modifier.Value], parameters: List[Parameter], replacement: List[Token]) extends Command
 
 case class CDelimiter(number: Int) extends Command
 

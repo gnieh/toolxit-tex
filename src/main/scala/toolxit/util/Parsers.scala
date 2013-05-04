@@ -428,6 +428,17 @@ trait Parsers[Token] {
       () <- setState(st)
     } yield ()
 
+  /** Parser that succeeds whenever `p` fails and never consume any input */
+  def not(p: =>Parser[Token]): Parser[Unit] =
+    new Parser[Unit] {
+      def apply(input: State): Result[Unit] = p(input) match {
+        case Consumed(Success(_, _, _)) | Empty(Success(_, _, _)) =>
+          Empty(Error(Unexpected(input.pos, None, Nil)))
+        case other =>
+          Empty(Success((), input, Unexpected(input.pos, None, Nil)))
+      }
+    }
+
   def run[T](p: Parser[T], in: State): Reply[T] = p(in).reply
 
   // ========== internals ==========

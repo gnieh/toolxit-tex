@@ -85,7 +85,7 @@ class MacroParserTest extends FlatSpec with ShouldMatchers {
   def inputOf(env: TeXEnvironment, st: Stream[Char]): lexer.TeXLexerState =
     lexer.TeXLexerState(st, StreamPosition(st, 0), ReadingState.N, env)
 
-  def checkDef(input: Stream[Char], expected: TeXMacro) {
+  def checkDef(input: Stream[Char], expected: CDef) {
     withCat(plainTeXCat) { env =>
       val tokens = lexer.stream(lexer.token, inputOf(env, input))
       parser.run(texdef, inputOf(env, tokens)) match {
@@ -97,13 +97,13 @@ class MacroParserTest extends FlatSpec with ShouldMatchers {
 
   "parsing a definition with no parameter" should "succeed" in {
     val input = """\def\test{}""".toStream
-    val expected = TeXMacro("test", Nil, Nil)
+    val expected = CDef("test", Nil, Nil, Nil)
     checkDef(input, expected)
   }
 
   it should "succeed with properly nested groups in replacement text" in {
     val input = """\def\test{this {is {a} replacement} {text}}""".toStream
-    val expected = TeXMacro("test",
+    val expected = CDef("test", Nil,
       Nil,
       List(
         CharacterToken('t', Category.LETTER),
@@ -145,19 +145,19 @@ class MacroParserTest extends FlatSpec with ShouldMatchers {
 
   "a parameter list" should "be recognized when it consists only in one parameter" in {
     val input = """\def\test#1{}""".toStream
-    val expected = TeXMacro("test", List(Left(ParameterToken(1))), Nil)
+    val expected = CDef("test", Nil, List(Left(ParameterToken(1))), Nil)
     checkDef(input, expected)
   }
 
   "a reference to a parameter" should "be recognized if the parameter exists" in {
     val input = """\def\test#1{#1}""".toStream
-    val expected = TeXMacro("test", List(Left(ParameterToken(1))), List(ParameterToken(1)))
+    val expected = CDef("test", Nil, List(Left(ParameterToken(1))), List(ParameterToken(1)))
     checkDef(input, expected)
   }
 
   "a complex parameter list" should "be parsed correctly" in {
     val input = """\def\cs AB#1#2C$#3\$ {#3{ab#1}#1 c##\x #2}""".toStream
-    val expected = TeXMacro("cs",
+    val expected = CDef("cs", Nil,
       List(
         Right(List(
           CharacterToken('A', Category.LETTER),
@@ -208,7 +208,7 @@ class MacroParserTest extends FlatSpec with ShouldMatchers {
 
   "special '#' character" should "be correctly handled in replacement text" in {
     val input = """\def\test{\def\test2##1{a test ##1}}""".toStream
-    val expected = TeXMacro("test", Nil,
+    val expected = CDef("test", Nil, Nil,
       List(
         ControlSequenceToken("def"),
         ControlSequenceToken("test"),
@@ -231,14 +231,16 @@ class MacroParserTest extends FlatSpec with ShouldMatchers {
     checkDef(input, expected)
   }
 
-  ignore should "be correctly interpreted if the last parameter is '#' immediately followed by '{'" in {
+  it should "be correctly interpreted if the last parameter is '#' immediately followed by '{'" in {
     val input = """\def\test#1c#{}""".toStream
-    val expected = TeXMacro("test",
+    val expected = CDef("test", Nil,
       List(
         Left(ParameterToken(1)),
         Right(List(
-          CharacterToken('c', Category.LETTER),
-          CharacterToken('#', Category.PARAMETER)
+          CharacterToken('c', Category.LETTER)
+        )),
+        Right(List(
+          CharacterToken('{', Category.BEGINNING_OF_GROUP)
         ))
       ),
       Nil

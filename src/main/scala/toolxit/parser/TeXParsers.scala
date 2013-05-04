@@ -23,7 +23,10 @@ import util._
  *
  *  @author Lucas Satabin
  */
-abstract class TeXParsers extends Parsers[Token] with TeXDefinitionParsers {
+abstract class TeXParsers extends Parsers[Token]
+                          with NumberParsers
+                          with TeXDefinitionParsers
+                          with TeXUtils {
 
   type State = TeXState
 
@@ -51,8 +54,48 @@ abstract class TeXParsers extends Parsers[Token] with TeXDefinitionParsers {
 
   /** Parser that parses and expands the next token */
   lazy val expanded: Parser[Token] =
-    // TODO implement
+    // rules for expansion are in the TeX book, starting at page 212
+    (for {
+      // if this is a control sequence...
+      ControlSequenceToken(name) <- any
+      // ... that is a macro, ...
+      Some(TeXMacro(_, params, repl, long)) <- fromEnv(name)
+      // ... parse the parameters (which are not expanded)...
+      () <- updateState(st => st.copy(expansion = false))
+      args <- paramParser(long, name, params)
+      // restore expansion
+      () <- updateState(st => st.copy(expansion = true))
+      // ... and substitute them in replacement text
+      replaced = substituteParameters(repl, args)
+      // finally, replace by replacement text...
+      () <- updateState { st =>
+        val newStream = flattened(replaced).toStream ++ st.stream
+        st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok) <|>
+    (for {
+      // if this is the \number control sequence...
+      ControlSequenceToken("number") <- any
+      // ... read the following (expanded) number...
+      num <- number
+      // replace by the decimal representation of the number
+      () <- updateState { st =>
+        val decimal = toTokens(num)
+        val newStream = decimal.toStream ++ st.stream
+        st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok) <|>
+    // TODO implement me
     any
+
+  def fromEnv(name: String): Parser[Option[ControlSequence]] =
+    for {
+      st <- getState
+    } yield st.env.css(name)
 
   /** Parser that parses the next expanded token if the expansion process is active, otherwise returns the next raw token */
   lazy val next: Parser[Token] =
@@ -64,18 +107,18 @@ abstract class TeXParsers extends Parsers[Token] with TeXDefinitionParsers {
 
   /** Parser that parses a single token, which can be a simple next token or a group token
    *  The groups must be correctly nested */
-  /*lazy val single: Parser[Token] =
+  lazy val single: Parser[Token] =
     (for {
-      _ <- beginningOfGroup
+      open <- beginningOfGroup
       // enter new group in environment
       () <- updateState(st => st.copy(env = st.env.enterGroup))
       tokens <- until(single, endOfGroup)
-      _ <- endOfGroup
+      close <- endOfGroup
       // leave group
       () <- updateState(st => st.copy(env = st.env.leaveGroup))
-    } yield GroupToken(tokens)) <|>
+    } yield GroupToken(open, tokens, close)) <|>
     param <|>
-    next*/
+    next
 
   /** Parser that accepts the given character token, with same category code */
   def char(c: CharacterToken): Parser[CharacterToken] =
@@ -104,6 +147,12 @@ abstract class TeXParsers extends Parsers[Token] with TeXDefinitionParsers {
   lazy val controlSequence: Parser[ControlSequenceToken] =
     for {
       (cs @ ControlSequenceToken(_)) <- next
+    } yield cs
+
+  /** Parser that accepts any control sequence, without performing any expansion */
+  lazy val rawControlSequence: Parser[ControlSequenceToken] =
+    for {
+      (cs @ ControlSequenceToken(_)) <- any
     } yield cs
 
   /** Parser that accepts the control sequence with the given name */
@@ -145,15 +194,26 @@ abstract class TeXParsers extends Parsers[Token] with TeXDefinitionParsers {
     } yield (c - 48)
 
   /** Parser that parses the given parameter tokens for macro invocation */
-  def paramParser(params: List[Parameter]): Parser[List[Token]] = params match {
-    case Left(ParameterToken(_)) :: rest =>
+  def paramParser(long: Boolean, name: String, params: List[Parameter]): Parser[List[Token]] = params match {
+    case Left(ParameterToken(_)) :: rest if long =>
       // number does not matter here, we know that it is correct
       for {
-        // parse the next (next) token
-        p <- next
+        // parse the next (single) token
+        p <- single
         // then the rest of the parameters
-        rest <- paramParser(rest)
+        rest <- paramParser(long, name, rest)
       } yield p :: rest
+    case Left(ParameterToken(_)) :: rest =>
+      // the long modifier was not given, do not allow \par to occur
+      (for {
+        // `\par` is not allowed
+        () <- not(controlSequence("par"))
+        // parse the next (single) token
+        p <- single
+        // then the rest of the parameters
+        rest <- paramParser(long, name, rest)
+      } yield p :: rest) <|>
+      fail("Paragraph ended before \\$name was complete")
     case Right(chars) :: rest =>
       def sequence(tokens: List[Token]): Parser[Unit] = tokens match {
         case (c @ CharacterToken(_, _)) :: rest =>
@@ -175,7 +235,7 @@ abstract class TeXParsers extends Parsers[Token] with TeXDefinitionParsers {
         // parse these delimiter characters (and ignore them)
         _ <- sequence(chars)
         // then the rest of the parameters
-        rest <- paramParser(rest)
+        rest <- paramParser(long, name, rest)
       } yield rest
     case Nil =>
       success(Nil)

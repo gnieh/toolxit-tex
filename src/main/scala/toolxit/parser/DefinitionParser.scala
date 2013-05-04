@@ -35,36 +35,69 @@ trait TeXDefinitionParsers extends Parsers[Token] {
     (for (_ <- controlSequence("long")) yield Modifier.Long) <|>
     (for (_ <- controlSequence("outer")) yield Modifier.Outer)
 
-  lazy val texdef: Parser[TeXMacro] =
-    for {
-      // \def
+  lazy val modifiers: Parser[List[Modifier.Value]] =
+    many(modifier)
+
+  /** Parser that accepts a definition introduction of control sequence
+   *  it consists in a list of modifiers and a kind of macro definition:
+   *   - \def
+   *   - \edef
+   *   - \gdef
+   *   - \xdef
+   */
+  lazy val decl: Parser[(List[Modifier.Value], Boolean)] =
+    (for {
+      mods <- modifiers
       _ <- controlSequence("def")
+    } yield (mods, false)) <|>
+    (for {
+      mods <- modifiers
+      _ <- controlSequence("edef")
+    } yield (mods, true)) <|>
+    (for {
+      mods <- modifiers
+      _ <- controlSequence("gdef")
+    } yield (Modifier.Global :: mods, false)) <|>
+    (for {
+      mods <- modifiers
+      _ <- controlSequence("xdef")
+    } yield (Modifier.Global :: mods, true))
+
+  lazy val texdef: Parser[CDef] =
+    for {
+      // \def, \edef, \gdef, \xdef
+      (mods, expand) <- decl
       // \name
-      ControlSequenceToken(name) <- controlSequence
+      ControlSequenceToken(name) <- rawControlSequence
       // <parameter text>
       params <- parameterText
-      // {
-      _ <- beginningOfGroup
+      // { if not eaten by previous `#{`
+      _ <- opt(beginningOfGroup)
       // disable macro expansion, and reinit group nesting
       st <- getState
-      () <- setState(st.copy(expansion = false, currentNesting = 0))
+      () <- setState(st.copy(expansion = expand, currentNesting = 0))
       // <replacement text>
       replacement <- replacementText
       // }
       _ <- endOfGroup
       // reenable macro expansion
       () <- setState(st)
-    } yield TeXMacro(name, params, replacement)
+    } yield CDef(name, mods, params, replacement)
 
   /** the parameter text is composed of either delimited or undelimited parameters.
    *  the current parameter counter is reset to 0 before parsing the parameters so that
    *  errors can be reported */
   lazy val parameterText: Parser[List[Parameter]] =
     (for {
-      // reinitialize parameter number
-      () <- updateState(st => st.copy(currentParam = 0))
-      params <- until(someParameter, beginningOfGroup)
-    } yield params)
+      // reinitialize parameter number and disable macro expansion
+      st <- getState
+      exp = st.expansion
+      () <- updateState(st => st.copy(currentParam = 0, expansion = false))
+      params <- until(someParameter, beginningOfGroup <|> paramBeginningOfGroup)
+      last <- opt(paramBeginningOfGroup)
+      // restore expansion
+      () <- updateState(st => st.copy(expansion = exp))
+    } yield params ::: last.toList)
 
   /** either a delimited parameter or an undelimited parameter */
   lazy val someParameter: Parser[Parameter] =
@@ -82,6 +115,13 @@ trait TeXDefinitionParsers extends Parsers[Token] {
     (for {
       chars <- until(next, parameter <|> beginningOfGroup)
     } yield Right(chars))
+
+  /** `#{` */
+  lazy val paramBeginningOfGroup: Parser[Parameter] =
+    for {
+      _ <- parameter
+      c <- beginningOfGroup
+    } yield Right(List(c))
 
   /** tokens that make the replacement text */
   lazy val replacementText: Parser[List[Token]] =

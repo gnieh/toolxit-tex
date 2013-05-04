@@ -118,7 +118,7 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
     /** Sets the value of the count register in the current environment.
      *  This value will be reseted to the previous value when leaving the current group.
      */
-    def update(number: Byte, value: Int) =
+    def update(number: Byte, value: (Int, List[Token])) =
       environment.setCount(number, value)
   }
 
@@ -178,7 +178,7 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
   private[this] val environment = new Environment
 
   // the available registers
-  private[this] val counters = Array.fill(256)(0)
+  private[this] val counters = Array.fill(256)((0, List(CharacterToken('0', Category.OTHER_CHARACTER))))
   // all dimension are stored as an integer multiple of one sp
   // the biggest dimension accepted by TeX is 2^30sp, so an integer
   // is sufficient to store it.
@@ -204,7 +204,7 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
     private val css = Map.empty[String, ControlSequence]
 
     // local values of the different registers
-    private[this] val counters = Map.empty[Byte, Int]
+    private[this] val counters = Map.empty[Byte, (Int, List[Token])]
     // all dimension are stored as an integer multiple of one sp
     // the biggest dimension accepted by TeX is 2^30sp, so an integer
     // is sufficient to store it.
@@ -247,7 +247,7 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
         }
     }
 
-    def findCount(number: Byte): Int = counters.get(number) match {
+    def findCount(number: Byte): (Int, List[Token]) = counters.get(number) match {
       case Some(n) => n
       case None =>
         parent match {
@@ -256,7 +256,7 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
         }
     }
 
-    def setCount(number: Byte, value: Int) =
+    def setCount(number: Byte, value: (Int, List[Token])) =
       counters(number) = value
 
     def findDimen(number: Byte): Dimension = dimensions.get(number) match {

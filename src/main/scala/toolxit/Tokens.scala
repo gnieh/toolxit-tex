@@ -71,7 +71,7 @@ case class ParameterToken(number: Int) extends Token {
  *
  *  @author Lucas Satabin
  */
-case class GroupToken(inner: List[Token]) extends Token {
+case class GroupToken(open: Token, inner: List[Token], close: Token) extends Token {
   lazy val debug = group {
     nest(1) {
       "Group(" :: inner.foldRight(empty) { (token, acc) =>
