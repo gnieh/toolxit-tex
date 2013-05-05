@@ -62,14 +62,26 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
      *  This category may vary over time, so this method must be called every time
      *  one needs to determine the category of a character.
      */
-    def apply(char: Char) =
-      environment.category(char)
+    def apply(char: Char): Category.Value =
+      categories.get(char) match {
+        case Some(cat) => cat
+        case None =>
+          parent match {
+            case Some(p) => p.category(char)
+            case None =>
+              // if not specified otherwise, UTF-8 letters are in category `letter`
+              if (char.isLetter)
+                Category.LETTER
+              else
+                Category.OTHER_CHARACTER
+          }
+      }
 
     /** Sets the category of the given character. This setting is scoped
      *  to the current group only, and will be discarded when leaving the group.
      */
     def update(char: Char, category: Category.Value) =
-      environment.setCategory(char, category)
+      categories(char) = category
   }
 
   /** Exposes control sequence management functions. */
@@ -80,7 +92,7 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
       /** Finds and returns the control sequence definition identified by its name.
        *  If the control sequence is not found, returns `None`.
        */
-      def apply(name: String) =
+      def apply(name: String): Option[ControlSequence] =
         root.css(name)
 
       /** Adds or replace the global control sequence identified by the given name
@@ -94,15 +106,21 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
     /** Finds and returns the control sequence definition identified by its name.
      *  If the control sequence is not found in the given context, returns `None`.
      */
-    def apply(name: String) =
-      environment.findControlSequence(name)
+    def apply(name: String): Option[ControlSequence] = controlSequences.get(name) match {
+      case Some(cs) => Some(cs)
+      case None =>
+        parent match {
+          case Some(p) => p.css(name)
+          case None => None
+        }
+    }
 
     /** Adds or replace the control sequence identified by the given name
      *  with the new control sequence definition. This control sequence definition
      *  is scoped to  the current group only, and will be discarded when leaving the group.
      */
     def update(name: String, cs: ControlSequence) =
-      environment.addControlSequence(name, cs)
+      controlSequences(name) = cs
   }
 
   /** Exposes count register management functions. */
@@ -112,14 +130,21 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
      *  in the current environment.
      *  The default value of a count register is `0`.
      */
-    def apply(number: Byte) =
-      environment.findCount(number)
+    def apply(number: Byte): Int = counters.get(number) match {
+      case Some(n) => n
+      case None =>
+        parent match {
+          case Some(p) => p.count(number)
+          case None =>
+            throw new TeXInternalException("unknown counter: " + number)
+        }
+    }
 
     /** Sets the value of the count register in the current environment.
      *  This value will be reseted to the previous value when leaving the current group.
      */
-    def update(number: Byte, value: (Int, List[Token])) =
-      environment.setCount(number, value)
+    def update(number: Byte, value: Int) =
+      counters(number) = value
   }
 
   /** Exposes dimension register management functions. */
@@ -129,14 +154,21 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
      *  in the current environment.
      *  The default value of a dimension register is `0 pt`.
      */
-    def apply(number: Byte) =
-      environment.findDimen(number)
+    def apply(number: Byte): Dimension = dimensions.get(number) match {
+      case Some(d) => Dimension(d)
+      case None =>
+        parent match {
+          case Some(p) => p.dimen(number)
+          case None =>
+            throw new TeXInternalException("unknown dimension: " + number)
+        }
+    }
 
     /** Sets the value of the dimension register in the current environment.
      *  This value will be reseted to the previous value when leaving the current group.
      */
     def update(number: Byte, value: Dimension) =
-      environment.setDimen(number, value)
+      dimensions(number) = value.sps
   }
 
   /** Exposes glue register management functions. */
@@ -146,14 +178,21 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
      *  in the current environment.
      *  The default value of a glue register is `0 pt +0 pt -0 pt`.
      */
-    def apply(number: Byte) =
-      environment.findGlue(number)
+    def apply(number: Byte): Glue = glues.get(number) match {
+      case Some(g) => Glue(g._1, g._2, g._3)
+      case None =>
+        parent match {
+          case Some(p) => p.skip(number)
+          case None =>
+            throw new TeXInternalException("unknown skip: " + number)
+        }
+    }
 
     /** Sets the value of the count register in the current environment.
      *  This value will be reseted to the previous value when leaving the current group.
      */
     def update(number: Byte, value: Glue) =
-      environment.setGlue(number, value)
+      glues(number) = (value.value, value.stretch, value.shrink)
   }
 
   /** Exposes muglue register management functions. */
@@ -163,31 +202,67 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
      *  in the current environment.
      *  The default value of a muglue register is `0 pt +0 pt -0 pt`.
      */
-    def apply(number: Byte) =
-      environment.findMuglue(number)
+    def apply(number: Byte): Muglue = muglues.get(number) match {
+      case Some(g) => Muglue(g._1, g._2, g._3)
+      case None =>
+        parent match {
+          case Some(p) => p.muskip(number)
+          case None =>
+            throw new TeXInternalException("unknown muskip: " + number)
+        }
+    }
 
     /** Sets the value of the count register in the current environment.
      *  This value will be reseted to the previous value when leaving the current group.
      */
     def update(number: Byte, value: Muglue) =
-      environment.setMuglue(number, value)
+      muglues(number) = (value.value, value.stretch, value.shrink)
+  }
+
+  /** Gets the current escape character */
+  def escapechar: CharacterToken =
+    _escapechar match {
+      case Some(c) =>
+        c
+      case None =>
+        parent match {
+          case Some(p) =>
+            p.escapechar
+          case None =>
+            throw new TeXException("should never happen")
+        }
+    }
+
+  def escapechar_=(c : Char) {
+    _escapechar = Some(CharacterToken(c, Category.OTHER_CHARACTER))
   }
 
   // ==== internals ====
 
-  private[this] val environment = new Environment
+  // the internal parameters
+  private[this] var _escapechar: Option[CharacterToken] = None
 
-  // the available registers
-  private[this] val counters = Array.fill(256)((0, List(CharacterToken('0', Category.OTHER_CHARACTER))))
+
+  // the map from character to category code
+  private val categories = Map.empty[Char, Category.Value]
+
+  // the map from cs name to its internal representation
+  private val controlSequences = Map.empty[String, ControlSequence]
+
+  // local values of the different registers
+  private[this] val counters = Map.empty[Byte, Int]
   // all dimension are stored as an integer multiple of one sp
   // the biggest dimension accepted by TeX is 2^30sp, so an integer
   // is sufficient to store it.
-  private[this] val dimensions = Array.fill(256)(0)
+  private[this] val dimensions = Map.empty[Byte, Int]
   // glues and muglues are the triple (dimension, stretch, shrink)
-  private[this] val glues = Array.fill(256)((0, 0, 0))
-  private[this] val muglues = Array.fill(256)((0, 0, 0))
+  private[this] val glues = Map.empty[Byte, (Int, Int, Int)]
+  private[this] val muglues = Map.empty[Byte, (Int, Int, Int)]
   // TODO other register types
 
+}
+
+object RootTeXEnvironment extends TeXEnvironment(None) {
   // set specific categories statically known at the beginning
   // when a fresh root environment is created
   category('\n') = Category.END_OF_LINE
@@ -196,111 +271,6 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
   category('%') = Category.COMMENT_CHARACTER
   category('\\') = Category.ESCAPE_CHARACTER
 
-  private class Environment(val parent: Option[Environment] = None) {
-    // the map from character to category code
-    private val categories = Map.empty[Char, Category.Value]
-
-    // the map from cs name to its internal representation
-    private val css = Map.empty[String, ControlSequence]
-
-    // local values of the different registers
-    private[this] val counters = Map.empty[Byte, (Int, List[Token])]
-    // all dimension are stored as an integer multiple of one sp
-    // the biggest dimension accepted by TeX is 2^30sp, so an integer
-    // is sufficient to store it.
-    private[this] val dimensions = Map.empty[Byte, Int]
-    // glues and muglues are the triple (dimension, stretch, shrink)
-    private[this] val glues = Map.empty[Byte, (Int, Int, Int)]
-    private[this] val muglues = Map.empty[Byte, (Int, Int, Int)]
-    // TODO other register types
-
-    def category(c: Char): Category.Value = {
-      categories.get(c) match {
-        case Some(cat) => cat
-        case None =>
-          parent match {
-            case Some(p) => p.category(c)
-            case None =>
-              // if not specified otherwise, UTF-8 letters are in category `letter`
-              if (c.isLetter)
-                Category.LETTER
-              else
-                Category.OTHER_CHARACTER
-          }
-      }
-    }
-
-    def setCategory(c: Char, cat: Category.Value) {
-      categories(c) = cat
-    }
-
-    def addControlSequence(name: String, cs: ControlSequence) = {
-      css(name) = cs
-    }
-
-    def findControlSequence(name: String): Option[ControlSequence] = css.get(name) match {
-      case Some(cs) => Some(cs)
-      case None =>
-        parent match {
-          case Some(p) => p.findControlSequence(name)
-          case None => None
-        }
-    }
-
-    def findCount(number: Byte): (Int, List[Token]) = counters.get(number) match {
-      case Some(n) => n
-      case None =>
-        parent match {
-          case Some(p) => p.findCount(number)
-          case None => self.counters(number >>> 24)
-        }
-    }
-
-    def setCount(number: Byte, value: (Int, List[Token])) =
-      counters(number) = value
-
-    def findDimen(number: Byte): Dimension = dimensions.get(number) match {
-      case Some(d) => Dimension(d)
-      case None =>
-        parent match {
-          case Some(p) => p.findDimen(number)
-          case None => Dimension(self.dimensions(number >>> 24))
-        }
-    }
-
-    def setDimen(number: Byte, value: Dimension) =
-      dimensions(number) = value.sps
-
-    def findGlue(number: Byte): Glue = glues.get(number) match {
-      case Some(g) => Glue(g._1, g._2, g._3)
-      case None =>
-        parent match {
-          case Some(p) => p.findGlue(number)
-          case None =>
-            val g = self.glues(number >>> 24)
-            Glue(g._1, g._2, g._3)
-        }
-    }
-
-    def setGlue(number: Byte, value: Glue) =
-      glues(number) = (value.value, value.stretch, value.shrink)
-
-    def findMuglue(number: Byte): Muglue = muglues.get(number) match {
-      case Some(g) => Muglue(g._1, g._2, g._3)
-      case None =>
-        parent match {
-          case Some(p) => p.findMuglue(number)
-          case None =>
-            val g = self.muglues(number >>> 24)
-            Muglue(g._1, g._2, g._3)
-        }
-    }
-
-    def setMuglue(number: Byte, value: Muglue) =
-      muglues(number) = (value.value, value.stretch, value.shrink)
-
-  }
-
+  // default escape character
+  escapechar = 92.toChar
 }
-
-object RootTeXEnvironment extends TeXEnvironment(None)
