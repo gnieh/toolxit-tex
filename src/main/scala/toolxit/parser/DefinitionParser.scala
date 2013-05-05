@@ -68,7 +68,7 @@ trait TeXDefinitionParsers extends Parsers[Token] {
       // \def, \edef, \gdef, \xdef
       (mods, expand) <- decl
       // \name
-      ControlSequenceToken(name) <- rawControlSequence
+      ControlSequenceToken(name, _) <- controlSequence
       // <parameter text>
       params <- parameterText
       // { if not eaten by previous `#{`

@@ -23,4 +23,9 @@ class TeXException(msg: String, inner: Throwable) extends Exception(msg, inner) 
   def this(msg: String) = this(msg, null)
 }
 
+class TeXInternalException(msg: String, inner: Throwable) extends Exception(msg, inner) {
+  def this() = this(null, null)
+  def this(msg: String) = this(msg, null)
+}
+
 class ControlSequenceException(msg: String) extends TeXException(msg)

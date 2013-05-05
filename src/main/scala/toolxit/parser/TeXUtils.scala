@@ -25,6 +25,7 @@ import scala.annotation.tailrec
  *  @author Lucas Satabin
  */
 trait TeXUtils {
+  this: TeXParsers =>
 
   /** Converts an integer to a list of tokens being its decimal representation */
   def toTokens(i: Int): List[Token] = {
@@ -40,6 +41,45 @@ trait TeXUtils {
       CharacterToken('-', Category.OTHER_CHARACTER) :: aux(i, Nil)
     else
       aux(i, Nil)
+  }
+
+  def toRoman(i: Int): List[Token] = {
+    def romanize(number: Int) = {
+      val numerals =
+        List(("m", 1000), ("cm", 900), ("d", 500), ("cd", 400),
+          ("c", 100),  ("xc", 90),  ("l", 50),  ("xl", 40),
+          ("x", 10),   ("ix", 9),   ("v", 5),   ("iv", 4),
+          ("i", 1))
+
+      def next(in: Int) = numerals.filter(_._2 <= in) match {
+        case (s, v) :: _ => Some((s, in - v))
+        case _ => None
+      }
+
+      def unfold(init: Int)(f: Int => Option[(String, Int)]): List[String] = f(init) match {
+        case None => Nil
+        case Some((r, v)) => r :: unfold(v)(f)
+      }
+
+      unfold(number)(next).mkString("")
+    }
+
+    if(i <= 0)
+      Nil
+    else
+      romanize(i).toList.map(c => CharacterToken(c, Category.OTHER_CHARACTER))
+  }
+
+  def toString(token: Token, env: TeXEnvironment): List[CharacterToken] = token match {
+    case ControlSequenceToken(name, true) =>
+      // an active character is printed without escape character
+      List(CharacterToken(name(0), Category.OTHER_CHARACTER))
+    case ControlSequenceToken(name, _) =>
+      env.escapechar :: name.toList.map(c => CharacterToken(c, Category.OTHER_CHARACTER))
+    case CharacterToken(c, _) =>
+      List(CharacterToken(c, Category.OTHER_CHARACTER))
+    case _ =>
+      throw new TeXException("should never happen")
   }
 
   /* substitute parameters by the concrete arguments */

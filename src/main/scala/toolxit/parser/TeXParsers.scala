@@ -57,7 +57,7 @@ abstract class TeXParsers extends Parsers[Token]
     // rules for expansion are in the TeX book, starting at page 212
     (for {
       // if this is a control sequence...
-      ControlSequenceToken(name) <- any
+      ControlSequenceToken(name, _) <- any
       // ... that is a macro, ...
       Some(TeXMacro(_, params, repl, long)) <- fromEnv(name)
       // ... parse the parameters (which are not expanded)...
@@ -77,13 +77,41 @@ abstract class TeXParsers extends Parsers[Token]
     } yield tok) <|>
     (for {
       // if this is the \number control sequence...
-      ControlSequenceToken("number") <- any
+      ControlSequenceToken("number", false) <- any
       // ... read the following (expanded) number...
       num <- number
       // replace by the decimal representation of the number
       () <- updateState { st =>
         val decimal = toTokens(num)
         val newStream = decimal.toStream ++ st.stream
+        st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok) <|>
+    (for {
+      // if this is the \romannumeral control sequence...
+      ControlSequenceToken("romannumeral", false) <- any
+      // ... read the following (expanded) number...
+      num <- number
+      // replace by the roman representation of the number
+      () <- updateState { st =>
+        val roman = toRoman(num)
+        val newStream = roman.toStream ++ st.stream
+        st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok) <|>
+    (for {
+      // if this is the \string control sequence...
+      ControlSequenceToken("string", false) <- any
+      // read the following (non expanded) token
+      tok <- any
+      // replace by the string representation of this token
+      () <- updateState { st =>
+        val toks = toString(tok, st.env)
+        val newStream = toks.toStream ++ st.stream
         st.copy(stream = newStream)
       }
       // ... and retry
@@ -146,13 +174,13 @@ abstract class TeXParsers extends Parsers[Token]
   /** Parser that accepts any control sequence */
   lazy val controlSequence: Parser[ControlSequenceToken] =
     for {
-      (cs @ ControlSequenceToken(_)) <- next
+      (cs @ ControlSequenceToken(_, _)) <- next
     } yield cs
 
   /** Parser that accepts any control sequence, without performing any expansion */
   lazy val rawControlSequence: Parser[ControlSequenceToken] =
     for {
-      (cs @ ControlSequenceToken(_)) <- any
+      (cs @ ControlSequenceToken(_, _)) <- any
     } yield cs
 
   /** Parser that accepts the control sequence with the given name */
@@ -221,7 +249,7 @@ abstract class TeXParsers extends Parsers[Token]
             _ <- char(c)
             () <- sequence(rest)
           } yield ()
-        case ControlSequenceToken(name) :: rest =>
+        case ControlSequenceToken(name, _) :: rest =>
           for {
             _ <- controlSequence(name)
             () <- sequence(rest)

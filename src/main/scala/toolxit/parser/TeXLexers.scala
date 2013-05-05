@@ -39,9 +39,9 @@ abstract class TeXLexers extends Parsers[Char] {
       _ <- many(skipWhitespace <|> IGNORED_CHARACTER <|> comment)
       // then read the token and change reading state when needed
       tok <-
-        // after control sequence, we go to reading state `middle of line`
+        // after control sequence, we go to reading state `skip whitespace`
         (for {
-          t <- controlSequence
+          t <- controlSequence <|> ACTIVE_CHARACTER
           () <- updateState(state => state.copy(readingState = ReadingState.S))
         } yield t) <|>
         EOL <|>
@@ -84,7 +84,6 @@ abstract class TeXLexers extends Parsers[Char] {
     SPACE <|>
     LETTER <|>
     OTHER_CHARACTER <|>
-    ACTIVE_CHARACTER <|>
     COMMENT_CHARACTER <|>
     INVALID_CHARACTER
 
@@ -219,7 +218,7 @@ abstract class TeXLexers extends Parsers[Char] {
       state <- getState
       cat = state.env.category(c)
       if cat == Category.ACTIVE_CHARACTER
-    } yield CharacterToken(c, cat)) <#> "active character (typically '~')"
+    } yield ControlSequenceToken(c.toString, true)) <#> "active character (typically '~')"
 
   /** A character with category code 14 */
   lazy val COMMENT_CHARACTER =
