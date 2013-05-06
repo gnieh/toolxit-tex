@@ -56,7 +56,20 @@ abstract class TeXParsers extends Parsers[Token]
   /** Parser that parses and expands the next token */
   lazy val expanded: Parser[Token] =
     // rules for expansion are in the TeX book, starting at page 212
-    (for {
+    expandedMacro <|>
+    expandedNumber <|>
+    expandedRomanNumeral <|>
+    expandedString <|>
+    expandedJobname <|>
+    expandedFontname <|>
+    expandedMeaning <|>
+    expandedCsname <|>
+    expandedExpandafter <|>
+    expandedNoexpand <|>
+    any
+
+  lazy val expandedMacro: Parser[Token] =
+    for {
       // if this is a control sequence...
       ControlSequenceToken(name, _) <- any
       // ... that is a macro, ...
@@ -75,8 +88,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedNumber: Parser[Token] =
+    for {
       // if this is the \number control sequence...
       ControlSequenceToken("number", false) <- any
       // ... read the following (expanded) number...
@@ -89,8 +104,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedRomanNumeral: Parser[Token] =
+    for {
       // if this is the \romannumeral control sequence...
       ControlSequenceToken("romannumeral", false) <- any
       // ... read the following (expanded) number...
@@ -103,8 +120,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedString: Parser[Token] =
+    for {
       // if this is the \string control sequence...
       ControlSequenceToken("string", false) <- any
       // read the following (non expanded) token
@@ -117,8 +136,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedJobname: Parser[Token] =
+    for {
       // if this is the \jobname control sequence...
       ControlSequenceToken("jobname", false) <- any
       // ... simply print the control sequence corresponding to environment's job name...
@@ -129,8 +150,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedFontname: Parser[Token] =
+    for {
       // if this is the \fontname control sequence...
       ControlSequenceToken("fontname", false) <- any
       // parse the subsequent font...
@@ -143,8 +166,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedMeaning: Parser[Token] =
+    for {
       // if this is the \meaning control sequence...
       ControlSequenceToken("meaning", false) <- any
       // ... get the next unexpanded token...
@@ -157,8 +182,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedCsname: Parser[Token] =
+    for {
       // if this is \csname ...
       ControlSequenceToken("csname", false) <- any
       // ... expand tokens until \endcsname...
@@ -179,8 +206,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedExpandafter: Parser[Token] =
+    for {
       // if this is \expandafter...
       ControlSequenceToken("expandafter", false) <- any
       // ... read the next unexpanded token...
@@ -193,8 +222,10 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    (for {
+    } yield tok
+
+  lazy val expandedNoexpand: Parser[Token] =
+    for {
       // if this is \noexpand...
       ControlSequenceToken("noexpand", false) <- any
       // ... get the next unexpanded token
@@ -210,9 +241,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <||>
-    // TODO implement me
-    any
+    } yield tok
 
   def fromEnv(name: String): Parser[Option[ControlSequence]] =
     for {
