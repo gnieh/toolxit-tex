@@ -22,9 +22,7 @@ import gnieh.pp._
 
 import org.scalatest._
 
-class MacroParserTest extends FlatSpec with ShouldMatchers {
-
-  val env = new TeXEnvironment(None)
+class MacroParserTest extends FlatSpec with ShouldMatchers with TestUtils {
 
   val lexer = new TeXLexers with StreamProcessor[Char] {
 
@@ -40,44 +38,10 @@ class MacroParserTest extends FlatSpec with ShouldMatchers {
 
   }
 
-  val render = new PrettyRenderer(80)
-
-  def pp(token: Token) {
-    println(render(token.debug).layout)
-  }
-
-  def stringOf(token: Token) =
-    token.toString + token.pos
-
   import parser._
 
   def stream(in: TeXState): Stream[Token] =
     parser.stream(expanded, in)
-
-  val plainTeXCat = Map(
-    '^' -> Category.SUPERSCRIPT,
-    '_' -> Category.SUBSCRIPT,
-    '{' -> Category.BEGINNING_OF_GROUP,
-    '}' -> Category.END_OF_GROUP,
-    '#' -> Category.PARAMETER,
-    '$' -> Category.MATH_SHIFT,
-    '~' -> Category.ACTIVE_CHARACTER
-  )
-
-  def withCat(cats: Map[Char, Category.Value])(body: TeXEnvironment => Unit) {
-    val env1 = env.enterGroup
-    cats foreach {
-      case (c, cat) => env1.category(c) = cat
-    }
-    body(env1)
-  }
-
-  def print(stream: Stream[Token]) {
-    val doc = stream.foldRight(empty) { (token, acc) =>
-      token.debug :|: acc
-    }
-    println(render(group(doc)).layout)
-  }
 
   def inputOf(env: TeXEnvironment, st: Stream[Token]): TeXState =
     TeXState(st, StreamPosition(st, 0), env)

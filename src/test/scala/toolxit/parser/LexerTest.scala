@@ -20,9 +20,7 @@ import util._
 
 import org.scalatest._
 
-class LexerTest extends FlatSpec with ShouldMatchers {
-
-  val env = new TeXEnvironment(None)
+class LexerTest extends FlatSpec with ShouldMatchers with TestUtils {
 
   val lexer = new TeXLexers with StreamProcessor[Char] {
 
@@ -31,29 +29,10 @@ class LexerTest extends FlatSpec with ShouldMatchers {
 
   }
 
-  def stringOf(token: Token) =
-    token.toString + token.pos
-
   import lexer._
 
   def stream(in: TeXLexerState): Stream[Token] =
     lexer.stream(token, in)
-
-  val basicCategories = Map(
-    '^' -> Category.SUPERSCRIPT
-  )
-
-  def withCat(cats: Map[Char, Category.Value])(body: TeXEnvironment => Unit) {
-    val env1 = env.enterGroup
-    cats foreach {
-      case (c, cat) => env1.category(c) = cat
-    }
-    body(env1)
-  }
-
-  def print(stream: Stream[Token]) {
-    println(stream.mkString("\n"))
-  }
 
   def inputOf(env: TeXEnvironment, st: Stream[Char]): TeXLexerState =
     TeXLexerState(st, StreamPosition(st, 0), ReadingState.N, env)
@@ -88,7 +67,7 @@ class LexerTest extends FlatSpec with ShouldMatchers {
   "a special character in input stream" should "be transformed by preprocessor" in {
     val input = "^^41".toStream
     val expected = Stream(CharacterToken('A', Category.LETTER))
-    withCat(basicCategories) { env =>
+    withCat(plainTeXCat) { env =>
       stream(inputOf(env, input)) should be(expected)
     }
   }
@@ -96,7 +75,7 @@ class LexerTest extends FlatSpec with ShouldMatchers {
   it should "also be recognized when used with a letter" in {
     val input = "^^r".toStream
     val expected = Stream(CharacterToken('2', Category.OTHER_CHARACTER))
-    withCat(basicCategories) { env =>
+    withCat(plainTeXCat) { env =>
       stream(inputOf(env, input)) should be(expected)
     }
   }
@@ -114,7 +93,15 @@ class LexerTest extends FlatSpec with ShouldMatchers {
   it should "be considered as a letter as part of a control sequence name" in {
     val input = "\\^^41BC".toStream
     val expected = Stream(ControlSequenceToken("ABC"))
-    withCat(basicCategories) { env =>
+    withCat(plainTeXCat) { env =>
+      stream(inputOf(env, input)) should be(expected)
+    }
+  }
+
+  "an active character in input stream" should "be parsed as a control sequence" in {
+    val input = "~".toStream
+    val expected = Stream(ControlSequenceToken("~", true))
+    withCat(plainTeXCat) { env =>
       stream(inputOf(env, input)) should be(expected)
     }
   }

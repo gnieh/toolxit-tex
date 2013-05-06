@@ -74,7 +74,7 @@ trait TeXUtils {
     case ControlSequenceToken(name, true) =>
       // an active character is printed without escape character
       List(CharacterToken(name(0), Category.OTHER_CHARACTER))
-    case ControlSequenceToken(name, _) =>
+    case ControlSequenceToken(name, false) =>
       env.escapechar :: name.toList.map(c => CharacterToken(c, Category.OTHER_CHARACTER))
     case CharacterToken(c, _) =>
       List(CharacterToken(c, Category.OTHER_CHARACTER))
