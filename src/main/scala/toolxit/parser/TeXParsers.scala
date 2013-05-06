@@ -43,7 +43,9 @@ abstract class TeXParsers extends Parsers[Token]
     // the current group nesting level
     currentNesting: Int = 0,
     // when parsing shall we expand the control sequences?
-    expansion: Boolean = true) extends Input
+    expansion: Boolean = true,
+    // when the current input is included by another one, refer to the parent input
+    including: Option[State] = None) extends Input
 
   protected def makeState(old: State, stream: Stream[Token], pos: Pos): State =
     old.copy(stream = stream, pos = pos)
@@ -243,6 +245,16 @@ abstract class TeXParsers extends Parsers[Token]
       tok <- expanded
     } yield tok
 
+  lazy val expandedInput: Parser[Token] =
+    for {
+      // if this is \input...
+      ControlSequenceToken("input", false) <- any
+      // read until next white space, this is the filename
+      name <- until(expanded, whitespace)
+      // replace the input by the new resolved stream
+      st <- getState
+    } yield null
+
   def fromEnv(name: String): Parser[Option[ControlSequence]] =
     for {
       st <- getState
@@ -270,6 +282,12 @@ abstract class TeXParsers extends Parsers[Token]
     } yield GroupToken(open, tokens, close)) <|>
     param <|>
     next
+
+  lazy val whitespace: Parser[CharacterToken] =
+    for {
+      (ch @ CharacterToken(value, cat)) <- next
+      if cat == Category.SPACE || cat == Category.END_OF_LINE
+    } yield ch
 
   /** Parser that accepts the given character token, with same category code */
   def char(c: CharacterToken): Parser[CharacterToken] =
