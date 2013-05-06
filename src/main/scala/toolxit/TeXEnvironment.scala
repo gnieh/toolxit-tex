@@ -118,6 +118,10 @@ class TeXEnvironment private[toolxit] (parent: Option[TeXEnvironment]) {
         }
     }
 
+    /** Indicates whether the current environment contains a definition with the given name */
+    def contains(name: String): Boolean =
+      controlSequences.contains(name) || parent.map(_.css.contains(name)).getOrElse(false)
+
     /** Adds or replace the control sequence identified by the given name
      *  with the new control sequence definition. This control sequence definition
      *  is scoped to  the current group only, and will be discarded when leaving the group.
@@ -290,6 +294,14 @@ class TeXEnvironment private[toolxit] (parent: Option[TeXEnvironment]) {
           // unknown control sequence in this environment, undefined
           "undefined"
       }
+  }
+
+  /*** Indicates whether this token should be expanded in the current environment */
+  def expandable(token: Token): Boolean = token match {
+    case ControlSequenceToken(name, _) =>
+      css.contains(name) || Primitives.expandablePrimitives.contains(name)
+    case _ =>
+      false
   }
 
   /** Makes a string out of a parsed token */

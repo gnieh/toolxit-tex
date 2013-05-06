@@ -193,6 +193,23 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
+    } yield tok) <|>
+    (for {
+      // if this is \noexpand...
+      ControlSequenceToken("noexpand", false) <- any
+      // ... get the next unexpanded token
+      next <- any
+      // update it in the input stream
+      () <- updateState { st =>
+        // if this should be expanded, treat the token as \relax
+        val tok = if(st.env.expandable(next))
+          ControlSequenceToken("relax")
+        else
+          next
+        st.copy(stream = tok #:: st.stream)
+      }
+      // ... and retry
+      tok <- expanded
     } yield tok)) <|>
     // TODO implement me
     any
