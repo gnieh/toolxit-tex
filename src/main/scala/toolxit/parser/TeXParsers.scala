@@ -56,7 +56,7 @@ abstract class TeXParsers extends Parsers[Token]
   /** Parser that parses and expands the next token */
   lazy val expanded: Parser[Token] =
     // rules for expansion are in the TeX book, starting at page 212
-    attempt((for {
+    (for {
       // if this is a control sequence...
       ControlSequenceToken(name, _) <- any
       // ... that is a macro, ...
@@ -75,7 +75,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is the \number control sequence...
       ControlSequenceToken("number", false) <- any
@@ -89,7 +89,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is the \romannumeral control sequence...
       ControlSequenceToken("romannumeral", false) <- any
@@ -103,7 +103,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is the \string control sequence...
       ControlSequenceToken("string", false) <- any
@@ -117,7 +117,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is the \jobname control sequence...
       ControlSequenceToken("jobname", false) <- any
@@ -129,7 +129,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is the \fontname control sequence...
       ControlSequenceToken("fontname", false) <- any
@@ -143,7 +143,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is the \meaning control sequence...
       ControlSequenceToken("meaning", false) <- any
@@ -157,7 +157,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is \csname ...
       ControlSequenceToken("csname", false) <- any
@@ -179,7 +179,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is \expandafter...
       ControlSequenceToken("expandafter", false) <- any
@@ -193,7 +193,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok) <|>
+    } yield tok) <||>
     (for {
       // if this is \noexpand...
       ControlSequenceToken("noexpand", false) <- any
@@ -210,7 +210,7 @@ abstract class TeXParsers extends Parsers[Token]
       }
       // ... and retry
       tok <- expanded
-    } yield tok)) <|>
+    } yield tok) <||>
     // TODO implement me
     any
 
