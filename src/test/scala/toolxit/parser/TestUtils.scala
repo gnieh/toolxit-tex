@@ -22,7 +22,7 @@ import gnieh.pp._
 
 trait TestUtils {
 
-  val env = RootTeXEnvironment
+  val env = new RootTeXEnvironment("texput")
 
   val plainTeXCat = Map(
     '^' -> Category.SUPERSCRIPT,

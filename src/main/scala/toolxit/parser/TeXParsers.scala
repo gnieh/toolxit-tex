@@ -117,6 +117,18 @@ abstract class TeXParsers extends Parsers[Token]
       // ... and retry
       tok <- expanded
     } yield tok) <|>
+    (for {
+      // if this is the \jobname control sequence...
+      ControlSequenceToken("jobname", false) <- any
+      // ... simply print the control sequence corresponding to environment's job name
+      () <- updateState { st =>
+        val toks = toTokens(st.env.jobname)
+        val newStream = toks.toStream ++ st.stream
+        st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok) <|>
     // TODO implement me
     any
 

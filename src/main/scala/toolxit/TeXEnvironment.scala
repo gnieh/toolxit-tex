@@ -36,7 +36,7 @@ import scala.collection.mutable.Map
  *  @author Lucas Satabin
  *
  */
-case class TeXEnvironment(parent: Option[TeXEnvironment]) {
+class TeXEnvironment private[toolxit] (parent: Option[TeXEnvironment]) {
   self =>
 
   /** The root environment of this instance */
@@ -44,6 +44,9 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
     case Some(env) => env.root
     case None      => this
   }
+
+  val jobname: String =
+    root.jobname
 
   /** Enters a new group and returns the new environment local to this group. */
   def enterGroup =
@@ -262,7 +265,7 @@ case class TeXEnvironment(parent: Option[TeXEnvironment]) {
 
 }
 
-object RootTeXEnvironment extends TeXEnvironment(None) {
+class RootTeXEnvironment(override val jobname: String) extends TeXEnvironment(None) {
   // set specific categories statically known at the beginning
   // when a fresh root environment is created
   category('\n') = Category.END_OF_LINE
@@ -273,4 +276,5 @@ object RootTeXEnvironment extends TeXEnvironment(None) {
 
   // default escape character
   escapechar = 92.toChar
+
 }

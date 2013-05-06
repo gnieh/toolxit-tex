@@ -43,6 +43,12 @@ trait TeXUtils {
       aux(i, Nil)
   }
 
+  def toTokens(s: String): List[Token] =
+    s.toList map {
+      case ' ' => CharacterToken(' ', Category.SPACE)
+      case c   => CharacterToken(c, Category.OTHER_CHARACTER)
+    }
+
   def toRoman(i: Int): List[Token] = {
     def romanize(number: Int) = {
       val numerals =
