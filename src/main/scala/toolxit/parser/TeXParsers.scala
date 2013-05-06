@@ -159,7 +159,7 @@ abstract class TeXParsers extends Parsers[Token]
       tok <- expanded
     } yield tok) <|>
     (for {
-      // if this is \csname...
+      // if this is \csname ...
       ControlSequenceToken("csname", false) <- any
       // ... expand tokens until \endcsname...
       tokens <- until(expanded, controlSequence("endcsname"))
@@ -176,6 +176,20 @@ abstract class TeXParsers extends Parsers[Token]
         }
         val newStream = cs #:: st.stream
         st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok) <|>
+    (for {
+      // if this is \expandafter...
+      ControlSequenceToken("expandafter", false) <- any
+      // ... read the next unexpanded token...
+      next <- any
+      // ... expand the next token...
+      after <- expanded
+      // put the unexpanded token in front...
+      () <- updateState { st =>
+        st.copy(stream = next #:: after #:: st.stream)
       }
       // ... and retry
       tok <- expanded
