@@ -56,7 +56,7 @@ abstract class TeXParsers extends Parsers[Token]
   /** Parser that parses and expands the next token */
   lazy val expanded: Parser[Token] =
     // rules for expansion are in the TeX book, starting at page 212
-    (for {
+    attempt((for {
       // if this is a control sequence...
       ControlSequenceToken(name, _) <- any
       // ... that is a macro, ...
@@ -158,6 +158,28 @@ abstract class TeXParsers extends Parsers[Token]
       // ... and retry
       tok <- expanded
     } yield tok) <|>
+    (for {
+      // if this is \csname...
+      ControlSequenceToken("csname", false) <- any
+      // ... expand tokens until \endcsname...
+      tokens <- until(expanded, controlSequence("endcsname"))
+      ControlSequenceToken("endcsname", false) <- any
+      // ... put tokens on top of the stream...
+      () <- updateState { st =>
+        val name = st.env.toString(tokens)
+        // the corresponding control sequence
+        val cs = st.env.css(name) match {
+          case Some(_) =>
+            ControlSequenceToken(name)
+          case None =>
+            ControlSequenceToken("relax")
+        }
+        val newStream = cs #:: st.stream
+        st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok)) <|>
     // TODO implement me
     any
 

@@ -283,6 +283,8 @@ class TeXEnvironment private[toolxit] (parent: Option[TeXEnvironment]) {
               esc + "toks" + number
             case TeXFont(_, number) =>
               ???
+            case TeXPrimitive(name) =>
+              esc + name
           }
         case None =>
           // unknown control sequence in this environment, undefined
@@ -303,6 +305,10 @@ class TeXEnvironment private[toolxit] (parent: Option[TeXEnvironment]) {
       throw new TeXInternalException("should never happen")
   }
 
+  def toString(tokens: List[Token]): String =
+    tokens.foldLeft("") { (acc, token) =>
+      acc + toString(token)
+    }
 
   // ==== internals ====
 
@@ -340,5 +346,9 @@ class RootTeXEnvironment(override val jobname: String) extends TeXEnvironment(No
 
   // default escape character
   escapechar = 92.toChar
+
+  // add all primitive control sequence names
+  for(name <- Primitives.all)
+    css(name) = TeXPrimitive(name)
 
 }
