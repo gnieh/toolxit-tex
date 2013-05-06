@@ -269,6 +269,25 @@ trait Parsers[Token] {
         }
       }
 
+    /** Deterministic choice. `that` parser is tried only if `this` parser failed
+     *  without consuming any input */
+    def <||>[U >: T](that: =>Parser[U]): Parser[U] =
+      new Parser[U] {
+        def apply(input: State): Result[U] = self(input) match {
+          case Empty(Error(msg1)) =>
+            that(input) match {
+              case Empty(Error(msg2)) =>
+                mergeError(msg1, msg2)
+              case Empty(Success(token, rest, msg2)) =>
+                mergeSuccess(token, rest, msg1, msg2)
+              case consumed =>
+                consumed
+            }
+          case other =>
+            other
+        }
+      }
+
     /** Parser that accepts the same input as `this` parser, but set the expected productions
      *  to `msg` when `this` fails without consuming any input. */
     def <#>(msg: String): Parser[T] =
