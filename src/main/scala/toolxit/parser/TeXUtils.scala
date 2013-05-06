@@ -82,10 +82,13 @@ trait TeXUtils {
       List(CharacterToken(name(0), Category.OTHER_CHARACTER))
     case ControlSequenceToken(name, false) =>
       env.escapechar :: name.toList.map(c => CharacterToken(c, Category.OTHER_CHARACTER))
+    case CharacterToken(' ', _) =>
+      // space always get category SPACE
+      List(CharacterToken(' ', Category.SPACE))
     case CharacterToken(c, _) =>
       List(CharacterToken(c, Category.OTHER_CHARACTER))
     case _ =>
-      throw new TeXException("should never happen")
+      throw new TeXInternalException("should never happen")
   }
 
   /* substitute parameters by the concrete arguments */

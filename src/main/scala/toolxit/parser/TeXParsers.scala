@@ -25,6 +25,7 @@ import util._
  */
 abstract class TeXParsers extends Parsers[Token]
                           with NumberParsers
+                          with FontParsers
                           with TeXDefinitionParsers
                           with TeXUtils {
 
@@ -120,9 +121,23 @@ abstract class TeXParsers extends Parsers[Token]
     (for {
       // if this is the \jobname control sequence...
       ControlSequenceToken("jobname", false) <- any
-      // ... simply print the control sequence corresponding to environment's job name
+      // ... simply print the control sequence corresponding to environment's job name...
       () <- updateState { st =>
         val toks = toTokens(st.env.jobname)
+        val newStream = toks.toStream ++ st.stream
+        st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok) <|>
+    (for {
+      // if this is the \fontname control sequence...
+      ControlSequenceToken("fontname", false) <- any
+      // parse the subsequent font...
+      f <- font
+      // ..., expand its name to a token list...
+      () <- updateState { st =>
+        val toks = toTokens(f.name + " at size " + f.atSize)
         val newStream = toks.toStream ++ st.stream
         st.copy(stream = newStream)
       }
