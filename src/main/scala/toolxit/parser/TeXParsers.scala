@@ -111,7 +111,7 @@ abstract class TeXParsers extends Parsers[Token]
       tok <- any
       // replace by the string representation of this token
       () <- updateState { st =>
-        val toks = toString(tok, st.env)
+        val toks = toTokens(st.env.toString(tok))
         val newStream = toks.toStream ++ st.stream
         st.copy(stream = newStream)
       }
@@ -138,6 +138,20 @@ abstract class TeXParsers extends Parsers[Token]
       // ..., expand its name to a token list...
       () <- updateState { st =>
         val toks = toTokens(f.name + " at size " + f.atSize)
+        val newStream = toks.toStream ++ st.stream
+        st.copy(stream = newStream)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok) <|>
+    (for {
+      // if this is the \meaning control sequence...
+      ControlSequenceToken("meaning", false) <- any
+      // ... get the next unexpanded token...
+      tok <- any
+      // ... and expand to its meaning...
+      () <- updateState { st =>
+        val toks = toTokens(st.env.meaning(tok))
         val newStream = toks.toStream ++ st.stream
         st.copy(stream = newStream)
       }

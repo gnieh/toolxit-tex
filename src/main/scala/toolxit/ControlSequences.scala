@@ -25,7 +25,6 @@ import dimen._
  *   - glue
  *   - muglue
  *   - macro (defined by a user, which is basically a function type)
- *   - built-in macros which are also function types but
  *   - token lists
  *   - font
  *
@@ -40,7 +39,6 @@ object TeXType extends Enumeration {
   val TeXGlue = Value
   val TeXMuglue = Value
   val TeXMacro = Value
-  val TeXBuiltin = Value
   val TeXTokenList = Value
   val TeXFont = Value
 }
@@ -85,10 +83,6 @@ final case class TeXMacro(name: String,
                           replacement: List[Token],
                           long: Boolean) extends ControlSequence {
   val tpe = TeXType.TeXMacro
-}
-
-final case class TeXBuiltin(name: String) extends ControlSequence {
-  val tpe = TeXType.TeXBuiltin
 }
 
 final case class TeXTokenList(name: String,

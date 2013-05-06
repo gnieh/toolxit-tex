@@ -13,7 +13,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+package toolxit
 
 object Primitives {
   /** Set of all primitive control sequence names that shall be expanded */
@@ -186,5 +186,13 @@ object Primitives {
     "everycr", // (tokens to insert after every \cr or nonredundant \crcr)
     "errhelp" // (tokens that supplement an \errmessage)
     )
+
+  val all =
+    expandablePrimitives ++
+    integerParameter ++
+    dimenParameter ++
+    glueParameter ++
+    muglueParameter ++
+    tokenParameter
 
 }

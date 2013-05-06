@@ -76,21 +76,6 @@ trait TeXUtils {
       romanize(i).toList.map(c => CharacterToken(c, Category.OTHER_CHARACTER))
   }
 
-  def toString(token: Token, env: TeXEnvironment): List[CharacterToken] = token match {
-    case ControlSequenceToken(name, true) =>
-      // an active character is printed without escape character
-      List(CharacterToken(name(0), Category.OTHER_CHARACTER))
-    case ControlSequenceToken(name, false) =>
-      env.escapechar :: name.toList.map(c => CharacterToken(c, Category.OTHER_CHARACTER))
-    case CharacterToken(' ', _) =>
-      // space always get category SPACE
-      List(CharacterToken(' ', Category.SPACE))
-    case CharacterToken(c, _) =>
-      List(CharacterToken(c, Category.OTHER_CHARACTER))
-    case _ =>
-      throw new TeXInternalException("should never happen")
-  }
-
   /* substitute parameters by the concrete arguments */
   def substituteParameters(replacement: List[Token], args: List[Token]): List[Token] =
     replacement map {

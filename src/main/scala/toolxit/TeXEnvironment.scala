@@ -240,6 +240,70 @@ class TeXEnvironment private[toolxit] (parent: Option[TeXEnvironment]) {
     _escapechar = Some(CharacterToken(c, Category.OTHER_CHARACTER))
   }
 
+  /** Returns the meaning of the given token in the current environment */
+  def meaning(token: Token): String = token match {
+    case CharacterToken(c, Category.BEGINNING_OF_GROUP) =>
+      "begin-group character " + c
+    case CharacterToken(c, Category.END_OF_GROUP) =>
+      "end-group character" + c
+    case CharacterToken(c, Category.OTHER_CHARACTER) =>
+      "the character " + c
+    case CharacterToken(c, Category.LETTER) =>
+      "the letter " + c
+    case CharacterToken(c, Category.PARAMETER) =>
+      "macro parameter character " + c
+    case ControlSequenceToken(name, _) if Primitives.all.contains(name) =>
+      escapechar.value + name
+    case ControlSequenceToken(name, _) =>
+      val esc = escapechar.value
+      css(name) match {
+        case Some(cs) =>
+          cs match {
+            case TeXInteger(_, number) =>
+              esc + "count" + number
+            case TeXChar(_, number) =>
+              esc + "char\"" + number
+            case TeXMathChar(_, number) =>
+              esc + "mathchar\"" + number
+            case TeXDimension(_, number) =>
+              esc + "dimen" + number
+            case TeXGlue(_, number) =>
+              esc + "skip" + number
+            case TeXMuglue(_, number) =>
+              esc + "muskip" + number
+            case TeXMacro(name, parameters, repl, long) =>
+              val params = parameters map {
+                case Left(ParameterToken(n)) =>
+                  "#" + n
+                case Right(tokens) =>
+                  tokens.map(toString).mkString
+              }
+              "macro:" + params + "->" + repl.map(toString).mkString
+            case TeXTokenList(_, number) =>
+              esc + "toks" + number
+            case TeXFont(_, number) =>
+              ???
+          }
+        case None =>
+          // unknown control sequence in this environment, undefined
+          "undefined"
+      }
+  }
+
+  /** Makes a string out of a parsed token */
+  def toString(token: Token): String = token match {
+    case ControlSequenceToken(name, true) =>
+      // an active character is printed without escape character
+      name
+    case ControlSequenceToken(name, false) =>
+      escapechar + name
+    case CharacterToken(c, _) =>
+      c.toString
+    case _ =>
+      throw new TeXInternalException("should never happen")
+  }
+
+
   // ==== internals ====
 
   // the internal parameters
