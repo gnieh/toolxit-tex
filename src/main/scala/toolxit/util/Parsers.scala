@@ -15,7 +15,11 @@
 */
 package toolxit.util
 
-/** Parser combinators implementation based on the paper *Parsec: Direct Style Monadic Parser Combinators For The Real World*
+/** Parser combinators based on the paper *Parsec: Direct Style Monadic Parser Combinators For The Real World*.
+ *  Parsers are function from `Stream` of `Token`s to some parsing result. No assumption is made on the kind
+ *  of input tokens, thus any kind of input can be accepted, not only strings.
+ *
+ *  @tparam Token the token type accepted as input for this set of parsers
  *
  *  @author Lucas Satabin
  */
@@ -217,7 +221,6 @@ trait Parsers[Token] {
      *  returned */
     def filter(p: T => Boolean): Parser[T] =
       new Parser[T] {
-
         def apply(input: State): Result[T] = self(input) match {
           case res @ Empty(Success(value, _, _)) if p(value) =>
             res
@@ -235,7 +238,6 @@ trait Parsers[Token] {
      *  any input, and `that` succeeds by consuming some input, then the second result is taken */
     def <|>[U >: T](that: =>Parser[U]): Parser[U] =
       new Parser[U] {
-
         def apply(input: State): Result[U] = self(input) match {
           case Empty(Error(msg1)) =>
             that(input) match {
@@ -292,10 +294,23 @@ trait Parsers[Token] {
      *  to `msg` when `this` fails without consuming any input. */
     def <#>(msg: String): Parser[T] =
       new Parser[T] {
-
         def apply(input: State): Result[T] = self(input) match {
           case Empty(Error(Unexpected(pos, unexp, _))) =>
             Empty(Error(Unexpected(pos, unexp, List(msg))))
+          case res =>
+            res
+        }
+      }
+
+    /** Parser that accepts the same input as `this` parser, but set the expected productions
+     *  to `msg` when `this` fails. */
+    def <##>(msg: String): Parser[T] =
+      new Parser[T] {
+        def apply(input: State): Result[T] = self(input) match {
+          case Empty(Error(Unexpected(pos, unexp, _))) =>
+            Empty(Error(Unexpected(pos, unexp, List(msg))))
+          case Consumed(Error(Unexpected(pos, unexp, _))) =>
+            Consumed(Error(Unexpected(pos, unexp, List(msg))))
           case res =>
             res
         }
@@ -305,7 +320,6 @@ trait Parsers[Token] {
      *  It does nothing if `this` parser failed */
     def post(f: (T,State) => State): Parser[T] =
       new Parser[T] {
-
         def apply(input: State): Result[T] = self(input) match {
           case Empty(Success(value, input1, msg)) =>
             Empty(Success(value, f(value, input1), msg))
@@ -321,7 +335,6 @@ trait Parsers[Token] {
   /** Parser that always succeeds as long as there is at least one token left in the input */
   lazy val any: Parser[Token] =
     new Parser[Token] {
-
       def apply(input: State): Result[Token] = input.stream match {
         case token #:: rest =>
           Consumed(Success(token, makeState(input, rest, nextPos(input.pos, token)), Unexpected(input.pos, None, Nil)))
@@ -333,7 +346,6 @@ trait Parsers[Token] {
   /** Parser that always succeeds without consuming any value */
   def success[T](value: T): Parser[T] =
     new Parser[T] {
-
       def apply(input: State): Result[T] =
         // ok without consuming anything
         Empty(Success(value, input, Unexpected(input.pos, None, Nil)))
@@ -342,7 +354,6 @@ trait Parsers[Token] {
   /** Parser that always fails with the given message and wihout consuming any input */
   def fail(msg: String): Parser[Nothing] =
     new Parser[Nothing] {
-
       def apply(input: State): Result[Nothing] =
         Empty(Error(UserMessage(input.pos, msg)))
     }
@@ -351,7 +362,6 @@ trait Parsers[Token] {
    *  The token is consumed when the parser succeeds */
   def satisfy(p: Token => Boolean): Parser[Token] =
     new Parser[Token] {
-
       def apply(input: State): Result[Token] = input.stream match {
         case token #:: rest if p(token) =>
           val pos1 = nextPos(input.pos, token)
@@ -368,7 +378,6 @@ trait Parsers[Token] {
   /** Parser that succeeds just like `p`, but pretends that no input was consumed when `p` fails */
   def attempt[T](p: =>Parser[T]): Parser[T] =
     new Parser[T] {
-
       lazy val p1 = p
 
       def apply(input: State): Result[T] = p1(input) match {
@@ -399,7 +408,6 @@ trait Parsers[Token] {
   /** Parser that returns the current state without consuming any input */
   lazy val getState: Parser[State] =
     new Parser[State] {
-
       def apply(input: State): Result[State] =
         Empty(Success(input, input, Unexpected(input.pos, None, Nil)))
     }
@@ -407,7 +415,6 @@ trait Parsers[Token] {
   /** Parser that sets the state to the given value without consuming any input */
   def setState(st: State): Parser[Unit] =
     new Parser[Unit] {
-
       def apply(input: State): Result[Unit] =
         Empty(Success((), st, Unexpected(input.pos, None, Nil)))
     }
@@ -415,7 +422,6 @@ trait Parsers[Token] {
   /** Parser that applies the function `f` to the current state */
   def updateState(f: State => State): Parser[Unit] =
     new Parser[Unit] {
-
       def apply(input: State): Result[Unit] =
         Empty(Success((), f(input), Unexpected(input.pos, None, Nil)))
     }
