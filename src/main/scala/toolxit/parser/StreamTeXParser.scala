@@ -24,7 +24,7 @@ import scala.util.parsing.input.Position
  *
  *  @author Lucas Satabin
  */
-case class StreamTeXParser(input: Stream[Char]) extends TeXParser {
+case class StreamTeXParser(input: Stream[Char], inputResolver: String => Option[Stream[Char]]) extends TeXParser {
   self =>
 
   val env = new TeXEnvironment(None)
@@ -47,6 +47,11 @@ case class StreamTeXParser(input: Stream[Char]) extends TeXParser {
 
     protected def createState(input: Stream[Token]): State =
       TeXState(input, StreamPosition(input, 0), env)
+
+    protected def resolve(name: String): Option[Stream[Token]] =
+      inputResolver(name) map { chars =>
+        lexer.stream(lexer.token, chars)
+      }
 
   }
 

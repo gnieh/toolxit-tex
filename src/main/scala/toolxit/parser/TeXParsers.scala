@@ -45,10 +45,15 @@ abstract class TeXParsers extends Parsers[Token]
     // when parsing shall we expand the control sequences?
     expansion: Boolean = true,
     // when the current input is included by another one, refer to the parent input
-    including: Option[State] = None) extends Input
+    including: Option[State] = None,
+    // when \endinput was seen, the next EOL or EOI restores the including input
+    endinput: Boolean = false) extends Input
 
   protected def makeState(old: State, stream: Stream[Token], pos: Pos): State =
     old.copy(stream = stream, pos = pos)
+
+  /** Resolves the given name for \input command */
+  protected def resolve(name: String): Option[Stream[Token]]
 
   /** Parser that parses a command, performing all needed expansions */
   lazy val command: Parser[Command] =
@@ -58,16 +63,17 @@ abstract class TeXParsers extends Parsers[Token]
   /** Parser that parses and expands the next token */
   lazy val expanded: Parser[Token] =
     // rules for expansion are in the TeX book, starting at page 212
-    expandedMacro <|>
-    expandedNumber <|>
-    expandedRomanNumeral <|>
-    expandedString <|>
-    expandedJobname <|>
-    expandedFontname <|>
-    expandedMeaning <|>
-    expandedCsname <|>
-    expandedExpandafter <|>
-    expandedNoexpand <|>
+    expandedMacro <||>
+    expandedNumber <||>
+    expandedRomanNumeral <||>
+    expandedString <||>
+    expandedJobname <||>
+    expandedFontname <||>
+    expandedMeaning <||>
+    expandedCsname <||>
+    expandedExpandafter <||>
+    expandedNoexpand <||>
+    expandEndinput <||>
     any
 
   lazy val expandedMacro: Parser[Token] =
@@ -251,9 +257,38 @@ abstract class TeXParsers extends Parsers[Token]
       ControlSequenceToken("input", false) <- any
       // read until next white space, this is the filename
       name <- until(expanded, whitespace)
-      // replace the input by the new resolved stream
+      // replace the input by the new resolved stream if it can be resolved
       st <- getState
-    } yield null
+      resolved = resolve(st.env.toString(name))
+      if resolved.isDefined
+      () <- setState {
+        val input = resolved.get
+        st.copy(
+          // append \endinput at the end to cause the parser to properly close it
+          // when reaching the end. it does not matter if there were previous occurrences
+          // of \endinput in the included stream, this one will simply be ignored in this case.
+          // the implementation of `++` on stream ensures that the `input`
+          // stream is not completely evaluated here
+          stream = input ++ Stream(ControlSequenceToken("endinput")),
+          pos = StreamPosition(input, 0),
+          including = Some(st)
+        )
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok
+
+  lazy val expandEndinput: Parser[Token] =
+    for {
+      // if this is \endinput
+      ControlSequenceToken("endinput", false) <- any
+      // input ends on next end of line character (or at EOI)
+      () <- updateState { st =>
+        st.copy(endinput = true)
+      }
+      // ... and retry
+      tok <- expanded
+    } yield tok
 
   def fromEnv(name: String): Parser[Option[ControlSequence]] =
     for {
@@ -261,12 +296,31 @@ abstract class TeXParsers extends Parsers[Token]
     } yield st.env.css(name)
 
   /** Parser that parses the next expanded token if the expansion process is active, otherwise returns the next raw token */
-  lazy val next: Parser[Token] =
-    (for {
+  lazy val next: Parser[Token] = {
+    val inner = attempt(for {
+        st <- getState
+        if st.expansion
+        t <- expanded
+      } yield t) <||>
+      any
+
+    for {
+      // end of line read
+      CharacterToken(_, Category.END_OF_LINE) <- inner
+      // and endinput flag set
       st <- getState
-      if st.expansion
-      t <- expanded
-    } yield t) <|> any
+      if st.endinput
+      // restore including input if any or set empty stream
+      () <- setState {
+        st.including match {
+          case Some(state) => state
+          case None        => makeState(st, Stream.empty, StreamPosition(Stream.empty, 0))
+        }
+      }
+      // retry
+      tok <- inner
+    } yield tok
+  }
 
   /** Parser that parses a single token, which can be a simple next token or a group token
    *  The groups must be correctly nested */
@@ -282,6 +336,11 @@ abstract class TeXParsers extends Parsers[Token]
     } yield GroupToken(open, tokens, close)) <|>
     param <|>
     next
+
+  lazy val eol: Parser[CharacterToken] =
+    for {
+      (ch @ CharacterToken(_, Category.END_OF_LINE)) <- any
+    } yield ch
 
   lazy val whitespace: Parser[CharacterToken] =
     for {
