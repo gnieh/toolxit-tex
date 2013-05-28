@@ -25,8 +25,10 @@ import util._
  */
 abstract class TeXParsers extends Parsers[Token]
                           with NumberParsers
+                          with DimenParsers
                           with FontParsers
                           with TeXDefinitionParsers
+                          with IfParsers
                           with TeXUtils {
 
   type State = TeXState
@@ -44,6 +46,9 @@ abstract class TeXParsers extends Parsers[Token]
     currentNesting: Int = 0,
     // when parsing shall we expand the control sequences?
     expansion: Boolean = true,
+    // when set to true, the next \else part encountered will be skipped
+    // until the matching \fi
+    skipElse: Boolean = false,
     // when the current input is included by another one, refer to the parent input
     including: Option[State] = None,
     // when \endinput was seen, the next EOL or EOI restores the including input
@@ -64,6 +69,7 @@ abstract class TeXParsers extends Parsers[Token]
   lazy val expanded: Parser[Token] =
     // rules for expansion are in the TeX book, starting at page 212
     expandedMacro <||>
+    expandedInput <||>
     expandedNumber <||>
     expandedRomanNumeral <||>
     expandedString <||>
@@ -313,7 +319,7 @@ abstract class TeXParsers extends Parsers[Token]
       // restore including input if any or set empty stream
       () <- setState {
         st.including match {
-          case Some(state) => state
+          case Some(state) => state.copy(env = st.env)
           case None        => makeState(st, Stream.empty, StreamPosition(Stream.empty, 0))
         }
       }

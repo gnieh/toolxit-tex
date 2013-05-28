@@ -48,6 +48,12 @@ class TeXEnvironment private[toolxit] (parent: Option[TeXEnvironment]) {
   val jobname: String =
     root.jobname
 
+  def mode: Mode.Value =
+    root.mode
+
+  def mode_=(m: Mode.Value): Unit =
+    root.mode = m
+
   /** Enters a new group and returns the new environment local to this group. */
   def enterGroup =
     new TeXEnvironment(Some(this))
@@ -348,6 +354,9 @@ class TeXEnvironment private[toolxit] (parent: Option[TeXEnvironment]) {
 }
 
 class RootTeXEnvironment(override val jobname: String) extends TeXEnvironment(None) {
+
+  override var mode = Mode.VerticalMode
+
   // set specific categories statically known at the beginning
   // when a fresh root environment is created
   category('\n') = Category.END_OF_LINE

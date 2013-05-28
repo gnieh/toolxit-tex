@@ -21,9 +21,12 @@ package dimen
  *  @author Lucas Satabin
  *
  */
-case class Dimension(sps: Int) {
+case class Dimension(sps: Int) extends Ordered[Dimension] {
 
   def toNumber: Int = 0
+
+  def compare(that: Dimension): Int =
+    this.sps - that.sps
 
 }
 
