@@ -14,28 +14,31 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package test
 
 import util._
 
 import org.scalatest._
 
-class LexerTest extends FlatSpec with ShouldMatchers with TestUtils {
+import eyes._
+import parser._
 
-  val lexer = new TeXLexers with StreamProcessor[Char] {
+class EyesTest extends FlatSpec with ShouldMatchers with TestUtils {
+
+  val eyes = new TeXEyes with StreamProcessor[Char] {
 
     protected def createState(input: Stream[Char]): State =
-      TeXLexerState(input, StreamPosition(input, 0), ReadingState.N, env)
+      TeXEyesState(input, CharPosition(None, 0, 1, 1), ReadingState.N, env)
 
   }
 
-  import lexer._
+  import eyes._
 
-  def stream(in: TeXLexerState): Stream[Token] =
-    lexer.stream(token, in)
+  def stream(in: TeXEyesState): Stream[Token] =
+    eyes.stream(token, in)
 
-  def inputOf(env: TeXEnvironment, st: Stream[Char]): TeXLexerState =
-    TeXLexerState(st, StreamPosition(st, 0), ReadingState.N, env)
+  def inputOf(env: TeXEnvironment, st: Stream[Char]): TeXEyesState =
+    TeXEyesState(st, CharPosition(None, 0, 1, 1), ReadingState.N, env)
 
   "a text stream" should "be parsed as a stream of character tokens" in {
     val input = "this is a simple text".toStream

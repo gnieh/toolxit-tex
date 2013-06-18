@@ -13,39 +13,20 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+package toolxit
+package mouth
 
-import java.io.InputStream
+import dimen._
 
-import parser._
-
-/** The TeX interpreter (or ''stomach'') consumes expanded tokens
- *  available  from an input stream and interprets them.
+/** A bunch of parsers that define TeX numbers
  *
  *  @author Lucas Satabin
- *
  */
-class TeXInterpreter(is: InputStream) {
+trait DimenParsers {
+  this: TeXMouth =>
 
-  // ==== internals ====
-
-  // new empty environment
-  val environment = new TeXEnvironment
-
-  // build the token stream
-  private val parser = new TeXParserImpl(environment)
-
-  // the mode the TeX interpreter is currently in
-  private var mode = Mode.VerticalMode
-
-  import environment._
-
-  def interpretAll = {
-    while (interpret) { println("**") }
-  }
-
-  def interpret = {
-    true
-  }
+  lazy val dimen: Parser[Dimension] =
+    // TODO implement me
+    fail("Not implemented yet")
 
 }

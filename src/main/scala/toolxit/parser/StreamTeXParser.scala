@@ -18,7 +18,8 @@ package parser
 
 import util._
 
-import scala.util.parsing.input.Position
+import eyes._
+import mouth._
 
 /** A parser that reads lazy stream of TeX input.
  *
@@ -32,25 +33,25 @@ case class StreamTeXParser(input: Stream[Char], inputResolver: String => Option[
   /** The stream of primitive TeX commands.
    *  Macro expansion was performed as needed so that you have reduced commands */
   lazy val commands: Stream[Command] =
-    parser.stream(parser.command, lexer.stream(lexer.token, input))
+    mouth.stream(mouth.command, eyes.stream(eyes.token, input))
 
   // ========== internals ==========
 
-  protected[this] val lexer = new TeXLexers with StreamProcessor[Char] {
+  protected[this] val eyes = new TeXEyes with StreamProcessor[Char] {
 
     protected def createState(input: Stream[Char]): State =
-      TeXLexerState(input, StreamPosition(input, 0), ReadingState.N, env)
+      TeXEyesState(input, CharPosition(None, 0, 1, 1), ReadingState.N, env)
 
   }
 
-  protected[this] val parser = new TeXParsers with StreamProcessor[Token] {
+  protected[this] val mouth = new TeXMouth with StreamProcessor[Token] {
 
     protected def createState(input: Stream[Token]): State =
-      TeXState(input, StreamPosition(input, 0), env)
+      TeXState(input, TokenPosition(None, 0, 1, 1), env)
 
     protected def resolve(name: String): Option[Stream[Token]] =
       inputResolver(name) map { chars =>
-        lexer.stream(lexer.token, chars)
+        eyes.stream(eyes.token, chars)
       }
 
   }

@@ -53,7 +53,7 @@ case class CharacterToken(value: Char, category: Category.Value) extends Token {
  *
  *  @author Lucas Satabin
  */
-case class ControlSequenceToken(name: String, active: Boolean = true) extends Token {
+case class ControlSequenceToken(name: String, active: Boolean = false) extends Token {
   lazy val debug = "ControlSequence(" :: name :: ")"
 }
 

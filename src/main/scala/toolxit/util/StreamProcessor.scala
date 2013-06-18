@@ -14,9 +14,7 @@
 * limitations under the License.
 */
 package toolxit
-package parser
-
-import util._
+package util
 
 import scala.util.parsing.input.{
   Position,

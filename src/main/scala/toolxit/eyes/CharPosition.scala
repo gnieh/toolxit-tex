@@ -14,13 +14,21 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package eyes
 
-trait FontParsers {
-  this: TeXParsers =>
+import util.StreamPosition
 
-  lazy val font: Parser[Font] =
-    // TODO implement me
-    fail("not implemented yet")
+/** A position that has no context in the stream for what was read before and
+ *  what comes next. It is only aware of the current token
+ *
+ *  @author Lucas Satabin
+ */
+case class CharPosition(read: Option[Char], offset: Int, line: Int, column: Int) extends StreamPosition[Char] {
+
+  def next(read: Char): CharPosition =
+    if(read == '\n')
+      CharPosition(Some(read), offset + 1, line + 1, 1)
+    else
+      CharPosition(Some(read), offset + 1, line, column + 1)
 
 }

@@ -13,14 +13,14 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+package toolxit
+package mouth
 
-class Def[C](implicit desired: Manifest[C]) {
-  def unapply[X](c: X)(implicit m: Manifest[X]): Option[C] = {
-    def sameArgs = desired.typeArguments.zip(m.typeArguments).forall {
-      case (desired, actual) => desired >:> actual
-    }
-    if (desired >:> m && sameArgs) Some(c.asInstanceOf[C])
-    else None
-  }
+trait FontParsers {
+  this: TeXMouth =>
+
+  lazy val font: Parser[Font] =
+    // TODO implement me
+    fail("not implemented yet")
+
 }

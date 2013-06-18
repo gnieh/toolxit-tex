@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package mouth
 
 import util._
 
@@ -23,7 +23,7 @@ import util._
  *  @author Lucas Satabin
  */
 trait IfParsers {
-  this: TeXParsers =>
+  this: TeXMouth =>
 
 
   lazy val expandedIf: Parser[Token] =

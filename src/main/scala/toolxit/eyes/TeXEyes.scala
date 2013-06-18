@@ -14,20 +14,23 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package eyes
 
 import util._
 
 /** A bunch of parsers that transform stream of characters into TeX tokens.
- *  This is a kind of lexer for TeX inputs
+ *  This is a kind of lexer for TeX inputs (its eyes as defined in the TeX book)
  *
  *  @author Lucas Satabin
  */
-abstract class TeXLexers extends Parsers[Char] {
+abstract class TeXEyes extends Parsers[Char] {
 
-  type State = TeXLexerState
+  type State = TeXEyesState
 
-  case class TeXLexerState(stream: Stream[Char], pos: Pos, readingState: ReadingState.Value, env: TeXEnvironment) extends Input
+  case class TeXEyesState(stream: Stream[Char], pos: Pos, readingState: ReadingState.Value, env: TeXEnvironment) extends Input
+
+  protected def nextPos(current: Pos, read: Char): Pos =
+    current.next(read)
 
   protected def makeState(old: State, stream: Stream[Char], pos: Pos): State =
     old.copy(stream = stream, pos = pos)

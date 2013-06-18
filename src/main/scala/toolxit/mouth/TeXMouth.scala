@@ -14,22 +14,23 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package mouth
 
 import util._
 
 /** A bunch of parsers that transform and expand the TeX tokens. The results
- *  are primitive TeX commands. The parsers must perform macro expansion when needed.
+ *  are primitive TeX commands (its mouth as explained in the TeX book).
+ *  The parsers must perform macro expansion when needed.
  *
  *  @author Lucas Satabin
  */
-abstract class TeXParsers extends Parsers[Token]
-                          with NumberParsers
-                          with DimenParsers
-                          with FontParsers
-                          with TeXDefinitionParsers
-                          with IfParsers
-                          with TeXUtils {
+abstract class TeXMouth extends Parsers[Token]
+                        with NumberParsers
+                        with DimenParsers
+                        with FontParsers
+                        with TeXDefinitionParsers
+                        with IfParsers
+                        with TeXUtils {
 
   type State = TeXState
 
@@ -276,7 +277,7 @@ abstract class TeXParsers extends Parsers[Token]
           // the implementation of `++` on stream ensures that the `input`
           // stream is not completely evaluated here
           stream = input ++ Stream(ControlSequenceToken("endinput")),
-          pos = StreamPosition(input, 0),
+          pos = TokenPosition(None, 0, 1, 1),
           including = Some(st)
         )
       }
@@ -320,7 +321,7 @@ abstract class TeXParsers extends Parsers[Token]
       () <- setState {
         st.including match {
           case Some(state) => state.copy(env = st.env)
-          case None        => makeState(st, Stream.empty, StreamPosition(Stream.empty, 0))
+          case None        => makeState(st, Stream.empty, TokenPosition(None, 0, 1, 1))
         }
       }
       // retry

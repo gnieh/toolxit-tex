@@ -15,6 +15,8 @@
 */
 package toolxit.util
 
+import scala.util.parsing.input.Position
+
 /** Parser combinators based on the paper *Parsec: Direct Style Monadic Parser Combinators For The Real World*.
  *  Parsers are function from `Stream` of `Token`s to some parsing result. No assumption is made on the kind
  *  of input tokens, thus any kind of input can be accepted, not only strings.
@@ -29,10 +31,6 @@ trait Parsers[Token] {
 
   /* The type of the parser state must contain (at least) the remaining input and the current position */
   type State <: Input
-
-  /** Computes the next position from the current position and read token */
-  protected def nextPos(current: Pos, read: Token): Pos =
-    current.next
 
   /** Creates a state from the `remaining` input and current position `pos` */
   protected def makeState(old: State, remaining: Stream[Token], pos: Pos): State
@@ -337,7 +335,7 @@ trait Parsers[Token] {
     new Parser[Token] {
       def apply(input: State): Result[Token] = input.stream match {
         case token #:: rest =>
-          Consumed(Success(token, makeState(input, rest, nextPos(input.pos, token)), Unexpected(input.pos, None, Nil)))
+          Consumed(Success(token, makeState(input, rest, input.pos.next(token)), Unexpected(input.pos, None, Nil)))
         case Stream.Empty =>
           Empty(Error(Unexpected(input.pos, None, List("any token"))))
       }
@@ -364,7 +362,7 @@ trait Parsers[Token] {
     new Parser[Token] {
       def apply(input: State): Result[Token] = input.stream match {
         case token #:: rest if p(token) =>
-          val pos1 = nextPos(input.pos, token)
+          val pos1 = input.pos.next(token)
           val input1 = makeState(input, rest, pos1)
           Consumed(Success(token, input1, Unexpected(input.pos, None, Nil)))
         case token #:: rest =>

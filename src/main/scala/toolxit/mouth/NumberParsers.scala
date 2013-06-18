@@ -14,12 +14,19 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package mouth
 
-object ReadingState extends Enumeration {
-  // reading state for input reading
-  // N = new line
-  // M = middle of a line
-  // S = skipping blanks
-  val N, M, S = Value
+import util._
+
+/** A bunch of parsers that define TeX numbers
+ *
+ *  @author Lucas Satabin
+ */
+trait NumberParsers extends Parsers[Token] {
+  this: TeXMouth =>
+
+  lazy val number: Parser[Int] =
+    // TODO implement me
+    fail("Not implemented yet")
+
 }

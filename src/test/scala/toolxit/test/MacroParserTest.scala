@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package test
 
 import util._
 
@@ -22,39 +22,44 @@ import gnieh.pp._
 
 import org.scalatest._
 
+import eyes._
+import mouth._
+import parser._
+
 class MacroParserTest extends FlatSpec with ShouldMatchers with TestUtils {
 
-  val lexer = new TeXLexers with StreamProcessor[Char] {
+  val eyes = new TeXEyes with StreamProcessor[Char] {
 
     protected def createState(input: Stream[Char]): State =
-      TeXLexerState(input, StreamPosition(input, 0), ReadingState.N, env)
+      TeXEyesState(input, CharPosition(None, 0, 1, 1), ReadingState.N, env)
 
   }
 
-  val parser = new TeXParsers with StreamProcessor[Token] {
+  val mouth = new TeXMouth with StreamProcessor[Token] {
 
     protected def createState(input: Stream[Token]): State =
-      TeXState(input, StreamPosition(input, 0), env)
+      TeXState(input, TokenPosition(None, 0, 1, 1), env)
+
+    protected def resolve(name: String) =
+      None
 
   }
 
-  import parser._
+  def stream(in: mouth.TeXState): Stream[Token] =
+    mouth.stream(mouth.expanded, in)
 
-  def stream(in: TeXState): Stream[Token] =
-    parser.stream(expanded, in)
+  def inputOf(env: TeXEnvironment, st: Stream[Token]): mouth.TeXState =
+    mouth.TeXState(st, TokenPosition(None, 0, 1, 1), env)
 
-  def inputOf(env: TeXEnvironment, st: Stream[Token]): TeXState =
-    TeXState(st, StreamPosition(st, 0), env)
-
-  def inputOf(env: TeXEnvironment, st: Stream[Char]): lexer.TeXLexerState =
-    lexer.TeXLexerState(st, StreamPosition(st, 0), ReadingState.N, env)
+  def inputOf(env: TeXEnvironment, st: Stream[Char]): eyes.TeXEyesState =
+    eyes.TeXEyesState(st, CharPosition(None, 0, 1, 1), ReadingState.N, env)
 
   def checkDef(input: Stream[Char], expected: CDef) {
     withCat(plainTeXCat) { env =>
-      val tokens = lexer.stream(lexer.token, inputOf(env, input))
-      parser.run(texdef, inputOf(env, tokens)) match {
-        case Success(res, _, _) => res should be(expected)
-        case Error(msg) => fail(msg.toString)
+      val tokens = eyes.stream(eyes.token, inputOf(env, input))
+      mouth.run(mouth.texdef, inputOf(env, tokens)) match {
+        case mouth.Success(res, _, _) => res should be(expected)
+        case mouth.Error(msg) => fail(msg.toString)
       }
     }
   }
@@ -159,12 +164,12 @@ class MacroParserTest extends FlatSpec with ShouldMatchers with TestUtils {
   "an unknown parameter number" should "be reported as an error" in {
     val input = """\def\toto{#1}""".toStream
     withCat(plainTeXCat) { env =>
-      val tokens = lexer.stream(lexer.token, inputOf(env, input))
-      parser.run(texdef, inputOf(env, tokens)) match {
-        case Success(_, _, _) =>
+      val tokens = eyes.stream(eyes.token, inputOf(env, input))
+      mouth.run(mouth.texdef, inputOf(env, tokens)) match {
+        case mouth.Success(_, _, _) =>
           fail("an error should have been encountered")
-        case Error(UserMessage(pos, msg)) =>
-        case Error(msg) =>
+        case mouth.Error(mouth.UserMessage(pos, msg)) =>
+        case mouth.Error(msg) =>
           fail(msg.toString)
       }
     }

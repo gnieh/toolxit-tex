@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package mouth
 
 import util._
 
@@ -28,7 +28,7 @@ import util._
  *  @author Lucas Satabin
  */
 trait TeXDefinitionParsers extends Parsers[Token] {
-  this: TeXParsers =>
+  this: TeXMouth =>
 
   lazy val modifier: Parser[Modifier.Value] =
     (for (_ <- controlSequence("global")) yield Modifier.Global) <|>

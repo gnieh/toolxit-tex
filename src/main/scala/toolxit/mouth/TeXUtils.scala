@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package mouth
 
 import util._
 
@@ -25,7 +25,7 @@ import scala.annotation.tailrec
  *  @author Lucas Satabin
  */
 trait TeXUtils {
-  this: TeXParsers =>
+  this: TeXMouth =>
 
   /** Converts an integer to a list of tokens being its decimal representation */
   def toTokens(i: Int): List[Token] = {

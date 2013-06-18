@@ -13,13 +13,23 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package toolxit.astex
+package toolxit
+package mouth
 
-/** message level when reporting.
+import util.StreamPosition
+
+/** A position that has no context in the stream for what was read before and
+ *  what comes next. It is only aware of the current token
  *
  *  @author Lucas Satabin
- *
  */
-object Level extends Enumeration {
-  val DEBUG, INFO, WARNING, ERROR, FATAL = Value
+case class TokenPosition(read: Option[Token], offset: Int, line: Int, column: Int) extends StreamPosition[Token] {
+
+  def next(read: Token): TokenPosition = read match {
+    case CharacterToken(_, Category.END_OF_LINE) =>
+      TokenPosition(Some(read), offset + 1, line + 1, 1)
+    case _ =>
+      TokenPosition(Some(read), offset + 1, line, column + 1)
+  }
+
 }

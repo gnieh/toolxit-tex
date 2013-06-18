@@ -22,25 +22,25 @@ import scala.util.parsing.input.Position
  *
  *  @author Lucas Satabin
  */
-case class StreamPosition[T](source: Stream[T], offset: Int) extends Position {
+abstract class StreamPosition[T: Manifest] extends Position {
 
-  val line = 1
+  val read: Option[T]
 
-  val column = offset + 1
+  val offset: Int
 
   def lineContents: String =
-    source.headOption.map(_.toString).getOrElse("<EOI>")
+    read.map(_.toString).getOrElse("<EOI>")
 
-  def next: StreamPosition[T] =
-    StreamPosition(source.tail, offset + 1)
+  def next(read: T): StreamPosition[T]
 
-  /** Returns a string representation of the `Position`, of the form `line.column`. */
-  override def toString = "@" + offset
+  /** Returns a string representation of the `Position`, of the form `[line.column]`. */
+  override def toString = s"[$line.$column]"
 
   override def <(that: Position) = that match {
-    case StreamPosition(_, that_offset) =>
-      this.offset < that_offset
+    case that: StreamPosition[T] =>
+      this.offset < that.offset
     case _ =>
       super.<(that)
   }
 }
+

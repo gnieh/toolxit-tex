@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 package toolxit
-package parser
+package test
 
 import util._
 
