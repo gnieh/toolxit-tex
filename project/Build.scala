@@ -7,17 +7,20 @@ object ToolXiTBuild extends Build {
     base = file(".")) settings (
     organization := "org.gnieh",
     name := "toolxit-tex",
-    version := "0.1-SNAPSHOT",
-    scalaVersion := "2.10.1",
+    version := "0.1.0-SNAPSHOT",
+    scalaVersion := "2.11.0",
     libraryDependencies ++= globalDependencies,
+    resolvers += "Sonatype Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/",
+    resolvers += "Sonatype Releases" at "http://oss.sonatype.org/content/repositories/releases/",
     parallelExecution := false,
     compileOptions)
     settings(publishSettings: _*)
   )
 
   lazy val globalDependencies = Seq(
-    "org.scalatest" %% "scalatest" % "2.0.M5b" % "test",
-    "org.gnieh" %% "gnieh-pp" % "0.1"
+    "org.scalatest" %% "scalatest" % "2.1.5" % "test",
+    "org.gnieh" %% "gnieh-pp" % "0.2-SNAPSHOT",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1"
   )
 
   lazy val compileOptions = scalacOptions ++= Seq("-deprecation", "-feature")

@@ -365,7 +365,7 @@ abstract class TeXMouth extends Parsers[Token]
   /** Parser that accepts the given character token sequence, with same category codes */
   def charSequence(chars: List[CharacterToken]): Parser[Unit] = chars match {
     case c :: rest => char(c) >>= (_ => charSequence(rest))
-    case Nil       => success()
+    case Nil       => success(())
   }
 
   /** Parser that accepts a sequence of 0 or more character tokens */
@@ -464,7 +464,7 @@ abstract class TeXMouth extends Parsers[Token]
         case token :: rest =>
           fail("Unexpected token " + token)
         case Nil =>
-          success()
+          success(())
       }
       for {
         // parse these delimiter characters (and ignore them)
